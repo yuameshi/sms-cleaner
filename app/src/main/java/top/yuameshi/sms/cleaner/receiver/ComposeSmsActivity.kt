@@ -2,7 +2,8 @@ package top.yuameshi.sms.cleaner.receiver
 
 import android.content.Intent
 import android.os.Bundle
-import android.provider.Telephony
+import android.telephony.SmsManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
@@ -29,8 +30,7 @@ class ComposeSmsActivity : ComponentActivity() {
                         address = address,
                         body = body,
                         onSend = { sendAddress, sendBody ->
-                            // TODO: Implement SMS sending
-                            finish()
+                            sendSms(sendAddress, sendBody)
                         },
                         onCancel = {
                             finish()
@@ -38,6 +38,17 @@ class ComposeSmsActivity : ComponentActivity() {
                     )
                 }
             }
+        }
+    }
+
+    private fun sendSms(address: String, body: String) {
+        try {
+            val smsManager = SmsManager.getDefault()
+            smsManager.sendTextMessage(address, null, body, null, null)
+            Toast.makeText(this, "短信已发送", Toast.LENGTH_SHORT).show()
+            finish()
+        } catch (e: Exception) {
+            Toast.makeText(this, "发送失败: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 }

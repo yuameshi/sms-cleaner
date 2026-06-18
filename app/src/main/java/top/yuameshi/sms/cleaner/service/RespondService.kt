@@ -3,6 +3,7 @@ package top.yuameshi.sms.cleaner.service
 import android.app.IntentService
 import android.content.Intent
 import android.net.Uri
+import android.telephony.SmsManager
 import android.util.Log
 
 class RespondService : IntentService("RespondService") {
@@ -17,8 +18,16 @@ class RespondService : IntentService("RespondService") {
 
             Log.d(TAG, "Respond via message to $uri: $message")
 
-            // TODO: Implement respond via message functionality
-            // This is a stub implementation for default SMS app eligibility
+            if (uri != null && message != null) {
+                val address = uri.schemeSpecificPart
+                try {
+                    val smsManager = SmsManager.getDefault()
+                    smsManager.sendTextMessage(address, null, message, null, null)
+                    Log.d(TAG, "Reply sent successfully")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to send reply", e)
+                }
+            }
         }
     }
 }

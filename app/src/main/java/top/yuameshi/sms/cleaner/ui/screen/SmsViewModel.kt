@@ -18,6 +18,7 @@ import top.yuameshi.sms.cleaner.domain.usecase.ExportSmsUseCase
 import top.yuameshi.sms.cleaner.domain.usecase.FilterSmsUseCase
 import top.yuameshi.sms.cleaner.domain.usecase.GetSmsUseCase
 import top.yuameshi.sms.cleaner.domain.usecase.ImportSmsUseCase
+import top.yuameshi.sms.cleaner.data.repository.FilterHistoryRepository
 import top.yuameshi.sms.cleaner.util.DefaultSmsManager
 import top.yuameshi.sms.cleaner.util.PermissionUtils
 import javax.inject.Inject
@@ -47,7 +48,8 @@ class SmsViewModel @Inject constructor(
     private val filterSmsUseCase: FilterSmsUseCase,
     private val deleteSmsUseCase: DeleteSmsUseCase,
     private val exportSmsUseCase: ExportSmsUseCase,
-    private val importSmsUseCase: ImportSmsUseCase
+    private val importSmsUseCase: ImportSmsUseCase,
+    private val filterHistoryRepository: FilterHistoryRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<SmsUiState>(SmsUiState.Loading)
@@ -68,6 +70,12 @@ class SmsViewModel @Inject constructor(
     private val _hasPermissions = MutableStateFlow(false)
     val hasPermissions: StateFlow<Boolean> = _hasPermissions.asStateFlow()
 
+    private val _filterHistory = MutableStateFlow<List<String>>(emptyList())
+    val filterHistory: StateFlow<List<String>> = _filterHistory.asStateFlow()
+
+    private val _previewMessages = MutableStateFlow<List<SmsMessage>>(emptyList())
+    val previewMessages: StateFlow<List<SmsMessage>> = _previewMessages.asStateFlow()
+
     private var currentPage = 0
     private var allMessages = mutableListOf<SmsMessage>()
     private var totalCount = 0
@@ -75,11 +83,26 @@ class SmsViewModel @Inject constructor(
 
     init {
         checkPermissionsAndDefaultSms()
+        loadFilterHistory()
     }
 
     fun checkPermissionsAndDefaultSms() {
         _hasPermissions.value = PermissionUtils.hasAllPermissions(context)
         _isDefaultSmsApp.value = DefaultSmsManager.isDefaultSmsApp(context)
+    }
+
+    private fun loadFilterHistory() {
+        _filterHistory.value = filterHistoryRepository.getHistory()
+    }
+
+    fun addFilterHistory(keyword: String) {
+        filterHistoryRepository.addHistory(keyword)
+        loadFilterHistory()
+    }
+
+    fun clearFilterHistory() {
+        filterHistoryRepository.clearHistory()
+        loadFilterHistory()
     }
 
     fun loadMessages() {
@@ -131,6 +154,9 @@ class SmsViewModel @Inject constructor(
 
     fun updateFilter(filterState: FilterState) {
         _filterState.value = filterState
+        if (filterState.keyword.isNotEmpty()) {
+            addFilterHistory(filterState.keyword)
+        }
         loadMessages()
     }
 
@@ -234,6 +260,21 @@ class SmsViewModel @Inject constructor(
                 )
             } catch (e: Exception) {
                 _operationState.value = OperationState.Error(e.message ?: "导入失败")
+            }
+        }
+    }
+
+    fun loadPreviewMessages() {
+        viewModelScope.launch {
+            try {
+                val messages = if (_selectionState.value.isSelectAll) {
+                    getSmsUseCase(_filterState.value, 0, 5)
+                } else {
+                    allMessages.filter { it.id in _selectionState.value.selectedIds }.take(5)
+                }
+                _previewMessages.value = messages
+            } catch (e: Exception) {
+                _previewMessages.value = emptyList()
             }
         }
     }

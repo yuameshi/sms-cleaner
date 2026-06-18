@@ -1,5 +1,9 @@
 package top.yuameshi.sms.cleaner.ui.screen
 
+import android.app.Activity
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,6 +14,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -18,24 +23,36 @@ import top.yuameshi.sms.cleaner.ui.component.ExportDialog
 import top.yuameshi.sms.cleaner.ui.component.FilterPanel
 import top.yuameshi.sms.cleaner.ui.component.ImportDialog
 import top.yuameshi.sms.cleaner.ui.component.SmsListItem
+import top.yuameshi.sms.cleaner.util.DefaultSmsManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
     viewModel: SmsViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val filterState by viewModel.filterState.collectAsStateWithLifecycle()
     val selectionState by viewModel.selectionState.collectAsStateWithLifecycle()
     val operationState by viewModel.operationState.collectAsStateWithLifecycle()
     val isDefaultSmsApp by viewModel.isDefaultSmsApp.collectAsStateWithLifecycle()
     val hasPermissions by viewModel.hasPermissions.collectAsStateWithLifecycle()
+    val filterHistory by viewModel.filterHistory.collectAsStateWithLifecycle()
+    val previewMessages by viewModel.previewMessages.collectAsStateWithLifecycle()
 
     var showFilterPanel by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
     var showImportDialog by remember { mutableStateOf(false) }
     var showDefaultSmsDialog by remember { mutableStateOf(false) }
+
+    val defaultSmsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            viewModel.checkPermissionsAndDefaultSms()
+        }
+    }
 
     val listState = rememberLazyListState()
 
@@ -136,10 +153,10 @@ fun MainScreen(
             if (showFilterPanel) {
                 FilterPanel(
                     filterState = filterState,
-                    filterHistory = emptyList(), // TODO: Implement filter history
+                    filterHistory = filterHistory,
                     onFilterChange = { viewModel.updateFilter(it) },
                     onClearFilters = { viewModel.clearFilters() },
-                    onClearHistory = { /* TODO */ }
+                    onClearHistory = { viewModel.clearFilterHistory() }
                 )
             }
 
@@ -281,9 +298,12 @@ fun MainScreen(
 
     // Delete confirmation dialog
     if (showDeleteDialog) {
+        LaunchedEffect(Unit) {
+            viewModel.loadPreviewMessages()
+        }
         DeleteConfirmDialog(
             count = selectionState.selectedCount,
-            previewMessages = emptyList(), // TODO: Get preview messages
+            previewMessages = previewMessages,
             onConfirm = {
                 viewModel.deleteSelected()
                 showDeleteDialog = false
@@ -326,7 +346,7 @@ fun MainScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showDefaultSmsDialog = false
-                    // TODO: Request default SMS role
+                    DefaultSmsManager.requestDefaultSmsRole(context as Activity, defaultSmsLauncher)
                 }) {
                     Text("前往设置")
                 }

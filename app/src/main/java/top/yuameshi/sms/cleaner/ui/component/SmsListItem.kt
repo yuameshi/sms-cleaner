@@ -22,11 +22,12 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.yuameshi.sms.cleaner.data.model.SmsMessage
+import top.yuameshi.sms.cleaner.ui.theme.DeleteRed
 import top.yuameshi.sms.cleaner.ui.theme.HighlightYellow
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun SmsListItem(
     message: SmsMessage,
@@ -41,16 +42,54 @@ fun SmsListItem(
     var isExpanded by remember { mutableStateOf(false) }
     val maxLength = 100
 
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .animateContentSize()
-            .combinedClickable(
-                onClick = onItemClick,
-                onLongClick = onLongClick
-            ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-    ) {
+    val dismissState = rememberDismissState(
+        confirmValueChange = { dismissValue ->
+            if (dismissValue == DismissValue.DismissedToStart) {
+                onDeleteClick()
+                false
+            } else {
+                false
+            }
+        }
+    )
+
+    SwipeToDismiss(
+        state = dismissState,
+        modifier = modifier,
+        directions = setOf(DismissDirection.EndToStart),
+        background = {
+            val color by animateColorAsState(
+                when (dismissState.targetValue) {
+                    DismissValue.DismissedToStart -> DeleteRed
+                    else -> Color.LightGray
+                },
+                label = "swipe_color"
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(color)
+                    .padding(16.dp),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Delete,
+                    contentDescription = "删除",
+                    tint = Color.White
+                )
+            }
+        },
+        dismissContent = {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .animateContentSize()
+                    .combinedClickable(
+                        onClick = onItemClick,
+                        onLongClick = onLongClick
+                    ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -208,6 +247,7 @@ fun SmsListItem(
             }
         }
     }
+    )
 }
 
 private fun getInitial(message: SmsMessage): String {

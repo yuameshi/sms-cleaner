@@ -6,6 +6,7 @@ import android.content.Context
 import android.net.Uri
 import android.provider.ContactsContract
 import android.provider.Telephony
+import android.telephony.SubscriptionManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -259,12 +260,18 @@ class SmsDataSource @Inject constructor(
 
         when (filterState.simId) {
             FilterState.SimId.SIM1 -> {
-                selections.add("${Telephony.Sms.SUBSCRIPTION_ID} = ?")
-                args.add("0")
+                val simIds = getActiveSimIds()
+                if (simIds.isNotEmpty()) {
+                    selections.add("${Telephony.Sms.SUBSCRIPTION_ID} = ?")
+                    args.add(simIds[0].toString())
+                }
             }
             FilterState.SimId.SIM2 -> {
-                selections.add("${Telephony.Sms.SUBSCRIPTION_ID} = ?")
-                args.add("1")
+                val simIds = getActiveSimIds()
+                if (simIds.size > 1) {
+                    selections.add("${Telephony.Sms.SUBSCRIPTION_ID} = ?")
+                    args.add(simIds[1].toString())
+                }
             }
             FilterState.SimId.ALL -> {}
         }
@@ -287,6 +294,16 @@ class SmsDataSource @Inject constructor(
         calendar.set(java.util.Calendar.SECOND, 0)
         calendar.set(java.util.Calendar.MILLISECOND, 0)
         return calendar.timeInMillis
+    }
+
+    private fun getActiveSimIds(): List<Int> {
+        return try {
+            val subscriptionManager = context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as SubscriptionManager
+            val subscriptions = subscriptionManager.activeSubscriptionInfoList
+            subscriptions?.map { it.subscriptionId } ?: emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 
     private fun getContactName(phoneNumber: String): String? {
