@@ -212,7 +212,7 @@ fun SmsListItem(
 
                     // SIM card
                     Text(
-                        text = "SIM${message.subId + 1}",
+                        text = "SIM ${message.subId}",
                         fontSize = 10.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

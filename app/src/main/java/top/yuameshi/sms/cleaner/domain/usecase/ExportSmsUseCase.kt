@@ -87,7 +87,7 @@ class ExportSmsUseCase @Inject constructor(
         val typeName = SmsMessage.getTypeName(message.type)
         val readStatus = if (message.read) "已读" else "未读"
         val lockStatus = if (message.locked) "锁定" else "未锁定"
-        val simCard = "SIM${message.subId + 1}"
+        val simCard = "SIM ${message.subId}"
 
         return listOf(
             message.id.toString(),
