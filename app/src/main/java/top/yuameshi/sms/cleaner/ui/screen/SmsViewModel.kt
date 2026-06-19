@@ -205,24 +205,27 @@ class SmsViewModel @Inject constructor(
         }
     }
 
-    fun exportMessages(exportAll: Boolean, fileName: String) {
+    fun exportMessages(exportAll: Boolean, uri: Uri) {
         viewModelScope.launch {
             _operationState.value = OperationState.Progress(0, 0)
 
             try {
+                val outputStream = context.contentResolver.openOutputStream(uri)
+                    ?: throw Exception("无法打开输出流")
+
                 val result = exportSmsUseCase(
                     filterState = _filterState.value,
                     exportAll = exportAll,
-                    fileName = fileName,
+                    outputStream = outputStream,
                     onProgress = { exported, total ->
                         _operationState.value = OperationState.Progress(exported, total)
                     }
                 )
 
                 result.fold(
-                    onSuccess = { file ->
+                    onSuccess = { exportedCount ->
                         _operationState.value = OperationState.Success(
-                            "导出完成！文件：${file.absolutePath}，大小：${file.length() / 1024} KB"
+                            "导出完成！共导出 $exportedCount 条短信"
                         )
                     },
                     onFailure = { e ->

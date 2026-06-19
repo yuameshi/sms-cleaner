@@ -12,10 +12,18 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import top.yuameshi.sms.cleaner.ui.theme.SMSCleanerTheme
+import top.yuameshi.sms.cleaner.util.PermissionUtils
 
 class ComposeSmsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Check if app is default SMS app
+        if (!PermissionUtils.isDefaultSmsApp(this)) {
+            Toast.makeText(this, "需要设置为默认短信App才能发送短信", Toast.LENGTH_LONG).show()
+            finish()
+            return
+        }
 
         val address = intent?.data?.schemeSpecificPart ?: ""
         val body = intent?.getStringExtra(Intent.EXTRA_TEXT) ?: ""

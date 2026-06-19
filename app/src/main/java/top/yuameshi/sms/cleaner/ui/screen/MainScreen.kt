@@ -369,8 +369,8 @@ fun MainScreen(
             filteredCount = (uiState as? SmsUiState.Success)?.filteredCount ?: 0,
             totalCount = (uiState as? SmsUiState.Success)?.totalCount ?: 0,
             hasFilters = filterState.hasFilters(),
-            onExport = { exportAll, fileName ->
-                viewModel.exportMessages(exportAll, fileName)
+            onExport = { exportAll, uri ->
+                viewModel.exportMessages(exportAll, uri)
                 showExportDialog = false
             },
             onDismiss = { showExportDialog = false }

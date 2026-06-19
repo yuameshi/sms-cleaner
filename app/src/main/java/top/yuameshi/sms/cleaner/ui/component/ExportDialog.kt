@@ -1,5 +1,8 @@
 package top.yuameshi.sms.cleaner.ui.component
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,13 +17,19 @@ fun ExportDialog(
     filteredCount: Int,
     totalCount: Int,
     hasFilters: Boolean,
-    onExport: (exportAll: Boolean, fileName: String) -> Unit,
+    onExport: (exportAll: Boolean, uri: Uri) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var exportAll by remember { mutableStateOf(!hasFilters) }
     var fileName by remember {
         mutableStateOf("sms_backup_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}")
+    }
+
+    val createDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/csv")
+    ) { uri: Uri? ->
+        uri?.let { onExport(exportAll, it) }
     }
 
     AlertDialog(
@@ -72,7 +81,9 @@ fun ExportDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { onExport(exportAll, fileName) },
+                onClick = {
+                    createDocumentLauncher.launch("$fileName.csv")
+                },
                 enabled = fileName.isNotEmpty()
             ) {
                 Text("开始导出")

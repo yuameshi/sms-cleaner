@@ -1,15 +1,12 @@
 package top.yuameshi.sms.cleaner.domain.usecase
 
 import android.content.Context
-import android.os.Environment
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import top.yuameshi.sms.cleaner.data.model.FilterState
 import top.yuameshi.sms.cleaner.data.model.SmsMessage
 import top.yuameshi.sms.cleaner.data.repository.SmsRepository
-import java.io.File
-import java.io.FileOutputStream
 import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -23,18 +20,15 @@ class ExportSmsUseCase @Inject constructor(
     suspend operator fun invoke(
         filterState: FilterState,
         exportAll: Boolean,
-        fileName: String,
+        outputStream: OutputStream,
         onProgress: (exported: Int, total: Int) -> Unit
-    ): Result<File> = withContext(Dispatchers.IO) {
+    ): Result<Int> = withContext(Dispatchers.IO) {
         try {
             val totalCount = if (exportAll) {
                 smsRepository.getTotalCount(FilterState())
             } else {
                 smsRepository.getTotalCount(filterState)
             }
-
-            val file = createExportFile(fileName)
-            val outputStream = FileOutputStream(file)
 
             // Write BOM for UTF-8
             outputStream.write(byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()))
@@ -66,20 +60,12 @@ class ExportSmsUseCase @Inject constructor(
                 page++
             }
 
+            outputStream.flush()
             outputStream.close()
-            Result.success(file)
+            Result.success(exported)
         } catch (e: Exception) {
             Result.failure(e)
         }
-    }
-
-    private fun createExportFile(fileName: String): File {
-        val documentsDir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
-            ?: context.filesDir
-        if (!documentsDir.exists()) {
-            documentsDir.mkdirs()
-        }
-        return File(documentsDir, "$fileName.csv")
     }
 
     private fun formatCsvLine(message: SmsMessage): String {
