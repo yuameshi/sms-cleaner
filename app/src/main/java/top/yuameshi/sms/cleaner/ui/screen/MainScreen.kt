@@ -1,6 +1,8 @@
 package top.yuameshi.sms.cleaner.ui.screen
 
 import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -24,6 +26,15 @@ import top.yuameshi.sms.cleaner.ui.component.FilterPanel
 import top.yuameshi.sms.cleaner.ui.component.ImportDialog
 import top.yuameshi.sms.cleaner.ui.component.SmsListItem
 import top.yuameshi.sms.cleaner.util.DefaultSmsManager
+
+fun Context.findActivity(): Activity? {
+    var context = this
+    while (context is ContextWrapper) {
+        if (context is Activity) return context
+        context = context.baseContext
+    }
+    return null
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -374,7 +385,9 @@ fun MainScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showDefaultSmsDialog = false
-                    DefaultSmsManager.requestDefaultSmsRole(context as Activity, defaultSmsLauncher)
+                    context.findActivity()?.let { activity ->
+                        DefaultSmsManager.requestDefaultSmsRole(activity, defaultSmsLauncher)
+                    }
                 }) {
                     Text("前往设置")
                 }
