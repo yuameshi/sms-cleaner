@@ -74,7 +74,8 @@ class ExportSmsUseCase @Inject constructor(
     }
 
     private fun createExportFile(fileName: String): File {
-        val documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
+        val documentsDir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
+            ?: context.filesDir
         if (!documentsDir.exists()) {
             documentsDir.mkdirs()
         }
@@ -88,6 +89,13 @@ class ExportSmsUseCase @Inject constructor(
         val readStatus = if (message.read) "已读" else "未读"
         val lockStatus = if (message.locked) "锁定" else "未锁定"
         val simCard = "SIM ${message.subId}"
+        val sendStatus = when (message.type) {
+            SmsMessage.TYPE_SENT -> "成功"
+            SmsMessage.TYPE_FAILED -> "失败"
+            SmsMessage.TYPE_OUTBOX -> "发送中"
+            SmsMessage.TYPE_QUEUED -> "待发送"
+            else -> ""
+        }
 
         return listOf(
             message.id.toString(),
@@ -98,7 +106,7 @@ class ExportSmsUseCase @Inject constructor(
             readStatus,
             lockStatus,
             simCard,
-            "成功"
+            sendStatus
         ).joinToString(",")
     }
 

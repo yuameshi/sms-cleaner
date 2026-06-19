@@ -4,7 +4,6 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
-import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -26,26 +25,10 @@ class SmsReceiver : BroadcastReceiver() {
             val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
             messages?.forEach { message ->
                 Log.d(TAG, "Received SMS from ${message.displayOriginatingAddress}: ${message.displayMessageBody}")
-                writeToSmsDatabase(context, message)
+                // Note: When app is default SMS app, the system automatically writes to database
+                // We only need to show the notification
                 showSmsNotification(context, message)
             }
-        }
-    }
-
-    private fun writeToSmsDatabase(context: Context, message: android.telephony.SmsMessage) {
-        try {
-            val values = ContentValues().apply {
-                put(Telephony.Sms.ADDRESS, message.displayOriginatingAddress)
-                put(Telephony.Sms.BODY, message.displayMessageBody)
-                put(Telephony.Sms.DATE, System.currentTimeMillis())
-                put(Telephony.Sms.TYPE, Telephony.Sms.MESSAGE_TYPE_INBOX)
-                put(Telephony.Sms.READ, 0)
-                put(Telephony.Sms.SUBSCRIPTION_ID, message.subId)
-            }
-            context.contentResolver.insert(Telephony.Sms.CONTENT_URI, values)
-            Log.d(TAG, "SMS written to database")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to write SMS to database", e)
         }
     }
 

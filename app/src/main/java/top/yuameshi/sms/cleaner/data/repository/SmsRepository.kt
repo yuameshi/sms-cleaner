@@ -40,7 +40,34 @@ class SmsRepository @Inject constructor(
     }
 
     suspend fun deleteMessagesByFilter(filterState: FilterState): Int {
-        return smsDataSource.deleteMessagesByFilter(filterState)
+        // If regex filter is active, we need to get matching messages first
+        // then delete by IDs, since SQL doesn't support regex natively
+        return if (filterState.regex.isNotEmpty()) {
+            try {
+                val regex = Regex(filterState.regex)
+                // Get all messages matching the filter (without regex)
+                val allMessages = mutableListOf<SmsMessage>()
+                var page = 0
+                val pageSize = 100
+                while (true) {
+                    val messages = smsDataSource.getSmsMessages(filterState.copy(regex = ""), page, pageSize)
+                    if (messages.isEmpty()) break
+                    allMessages.addAll(messages)
+                    page++
+                }
+                // Filter by regex in memory
+                val matchingIds = allMessages.filter { regex.containsMatchIn(it.body) }.map { it.id }
+                if (matchingIds.isNotEmpty()) {
+                    smsDataSource.deleteMessages(matchingIds)
+                } else {
+                    0
+                }
+            } catch (e: Exception) {
+                0
+            }
+        } else {
+            smsDataSource.deleteMessagesByFilter(filterState)
+        }
     }
 
     suspend fun insertMessage(
