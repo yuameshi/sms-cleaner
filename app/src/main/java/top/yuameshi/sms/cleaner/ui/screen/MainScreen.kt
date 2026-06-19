@@ -119,7 +119,13 @@ fun MainScreen(
                         IconButton(onClick = { showExportDialog = true }) {
                             Icon(Icons.Default.FileDownload, contentDescription = "导出")
                         }
-                        IconButton(onClick = { showImportDialog = true }) {
+                        IconButton(onClick = {
+                            if (isDefaultSmsApp) {
+                                showImportDialog = true
+                            } else {
+                                showDefaultSmsDialog = true
+                            }
+                        }) {
                             Icon(Icons.Default.FileUpload, contentDescription = "导入")
                         }
                     }
