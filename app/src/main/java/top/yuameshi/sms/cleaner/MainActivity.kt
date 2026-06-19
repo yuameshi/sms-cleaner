@@ -49,7 +49,8 @@ class MainActivity : ComponentActivity() {
     private fun checkAndRequestPermissions() {
         val requiredPermissions = mutableListOf(
             Manifest.permission.READ_SMS,
-            Manifest.permission.READ_CONTACTS
+            Manifest.permission.READ_CONTACTS,
+            Manifest.permission.READ_PHONE_STATE
         )
 
         // Add POST_NOTIFICATIONS for Android 13+
