@@ -28,6 +28,7 @@ import top.yuameshi.sms.cleaner.util.DefaultSmsManager
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
+    hasPermissions: Boolean = false,
     viewModel: SmsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -36,7 +37,6 @@ fun MainScreen(
     val selectionState by viewModel.selectionState.collectAsStateWithLifecycle()
     val operationState by viewModel.operationState.collectAsStateWithLifecycle()
     val isDefaultSmsApp by viewModel.isDefaultSmsApp.collectAsStateWithLifecycle()
-    val hasPermissions by viewModel.hasPermissions.collectAsStateWithLifecycle()
     val filterHistory by viewModel.filterHistory.collectAsStateWithLifecycle()
     val previewMessages by viewModel.previewMessages.collectAsStateWithLifecycle()
 
@@ -56,9 +56,10 @@ fun MainScreen(
 
     val listState = rememberLazyListState()
 
-    // Load messages on first composition
-    LaunchedEffect(Unit) {
+    // Load messages when permissions are granted
+    LaunchedEffect(hasPermissions) {
         if (hasPermissions) {
+            viewModel.checkPermissionsAndDefaultSms()
             viewModel.loadMessages()
         }
     }
@@ -185,7 +186,34 @@ fun MainScreen(
             }
 
             // Content
-            when (val state = uiState) {
+            if (!hasPermissions) {
+                // Permission not granted state
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.Lock,
+                            contentDescription = null,
+                            modifier = Modifier.size(64.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "需要短信和通讯录权限",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "请在系统设置中授予应用权限",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else when (val state = uiState) {
                 is SmsUiState.Loading -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),

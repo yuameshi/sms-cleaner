@@ -17,7 +17,6 @@ class SmsReceiver : BroadcastReceiver() {
     companion object {
         private const val TAG = "SmsReceiver"
         private const val CHANNEL_ID = "sms_channel"
-        private const val NOTIFICATION_ID = 1001
     }
 
     override fun onReceive(context: Context, intent: Intent) {
@@ -45,6 +44,9 @@ class SmsReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_IMMUTABLE
         )
 
+        // Use unique notification ID based on timestamp
+        val notificationId = System.currentTimeMillis().toInt()
+
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setContentTitle("新短信 - ${message.displayOriginatingAddress}")
@@ -55,7 +57,7 @@ class SmsReceiver : BroadcastReceiver() {
             .build()
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(NOTIFICATION_ID, notification)
+        notificationManager.notify(notificationId, notification)
     }
 
     private fun createNotificationChannel(context: Context) {
