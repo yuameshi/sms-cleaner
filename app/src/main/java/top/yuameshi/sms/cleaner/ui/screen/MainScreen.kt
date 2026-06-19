@@ -133,7 +133,13 @@ fun MainScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        IconButton(onClick = { showDeleteDialog = true }) {
+                        IconButton(onClick = {
+                            if (isDefaultSmsApp) {
+                                showDeleteDialog = true
+                            } else {
+                                showDefaultSmsDialog = true
+                            }
+                        }) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(Icons.Default.Delete, contentDescription = "删除")
                                 Text("删除", style = MaterialTheme.typography.labelSmall)
