@@ -45,7 +45,8 @@ class ImportSmsUseCase @Inject constructor(
             var skipped = 0
             var lineNumber = 1
 
-            reader.forEachLine { line ->
+            var line = reader.readLine()
+            while (line != null) {
                 lineNumber++
                 try {
                     val fields = parseCsvLine(line)
@@ -57,25 +58,30 @@ class ImportSmsUseCase @Inject constructor(
                         val readStatus = fields[5]
 
                         val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
-                        val date = dateFormat.parse(dateStr)?.time ?: return@forEachLine
-                        val type = getTypeFromName(typeName)
-                        val read = readStatus == "已读"
+                        val date = dateFormat.parse(dateStr)?.time
+                        if (date != null) {
+                            val type = getTypeFromName(typeName)
+                            val read = readStatus == "已读"
 
-                        // Check for duplicate
-                        val isDuplicate = smsRepository.checkDuplicate(address, body, date)
-                        if (isDuplicate) {
-                            skipped++
+                            // Check for duplicate
+                            val isDuplicate = smsRepository.checkDuplicate(address, body, date)
+                            if (isDuplicate) {
+                                skipped++
+                            } else {
+                                smsRepository.insertMessage(address, body, date, type, read, 0)
+                                imported++
+                            }
+
+                            onProgress(imported, skipped)
                         } else {
-                            smsRepository.insertMessage(address, body, date, type, read, 0)
-                            imported++
+                            skipped++
                         }
-
-                        onProgress(imported, skipped)
                     }
                 } catch (e: Exception) {
                     // Skip invalid lines
                     skipped++
                 }
+                line = reader.readLine()
             }
 
             reader.close()

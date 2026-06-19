@@ -156,7 +156,7 @@ class SmsDataSource @Inject constructor(
         } ?: false
     }
 
-    private fun buildSelection(filterState: FilterState): Pair<String, Array<String>> {
+    private fun buildSelection(filterState: FilterState): Pair<String?, Array<String>?> {
         val selections = mutableListOf<String>()
         val args = mutableListOf<String>()
 
