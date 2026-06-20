@@ -185,41 +185,50 @@ fun MainScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        IconButton(onClick = {
-                            if (isDefaultSmsApp) {
-                                showDeleteDialog = true
-                            } else {
-                                showDefaultSmsDialog = true
-                            }
-                        }) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        // Delete
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            IconButton(onClick = {
+                                if (isDefaultSmsApp) {
+                                    showDeleteDialog = true
+                                } else {
+                                    showDefaultSmsDialog = true
+                                }
+                            }) {
                                 Icon(Icons.Default.Delete, contentDescription = "删除")
-                                Text("删除", style = MaterialTheme.typography.labelSmall)
                             }
+                            Text("删除", style = MaterialTheme.typography.labelSmall)
                         }
-                        IconButton(onClick = { viewModel.selectAll() }) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+
+                        // Select All
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            IconButton(onClick = { viewModel.selectAll() }) {
                                 Icon(Icons.Default.SelectAll, contentDescription = "全选")
-                                Text("全选", style = MaterialTheme.typography.labelSmall)
                             }
+                            Text("全选", style = MaterialTheme.typography.labelSmall)
                         }
-                        IconButton(onClick = { viewModel.invertSelection() }) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+
+                        // Invert Selection
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            IconButton(onClick = { viewModel.invertSelection() }) {
                                 Icon(Icons.Default.Flip, contentDescription = "反选")
-                                Text("反选", style = MaterialTheme.typography.labelSmall)
                             }
+                            Text("反选", style = MaterialTheme.typography.labelSmall)
                         }
-                        IconButton(onClick = { viewModel.deselectAll() }) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+
+                        // Deselect All
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            IconButton(onClick = { viewModel.deselectAll() }) {
                                 Icon(Icons.Default.Deselect, contentDescription = "取消全选")
-                                Text("取消全选", style = MaterialTheme.typography.labelSmall)
                             }
+                            Text("取消全选", style = MaterialTheme.typography.labelSmall)
                         }
-                        IconButton(onClick = { showExportDialog = true }) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+
+                        // Export
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            IconButton(onClick = { showExportDialog = true }) {
                                 Icon(Icons.Default.GetApp, contentDescription = "导出")
-                                Text("导出", style = MaterialTheme.typography.labelSmall)
                             }
+                            Text("导出", style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 }
