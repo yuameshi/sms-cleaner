@@ -1,0 +1,262 @@
+package top.yuameshi.sms.cleaner.ui.component
+
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import top.yuameshi.sms.cleaner.data.model.FilterState
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DrawerFilterPanel(
+    filterState: FilterState,
+    filterHistory: List<String>,
+    onFilterChange: (FilterState) -> Unit,
+    onClearFilters: () -> Unit,
+    onClearHistory: () -> Unit,
+    onApply: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var keyword by remember { mutableStateOf(filterState.keyword) }
+    var regex by remember { mutableStateOf(filterState.regex) }
+    var isRegexMode by remember { mutableStateOf(filterState.isRegexMode) }
+    var regexError by remember { mutableStateOf<String?>(null) }
+
+    Column(
+        modifier = modifier
+            .fillMaxHeight()
+            .width(320.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        // Title
+        Text(
+            text = "筛选",
+            style = MaterialTheme.typography.headlineMedium
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Search bar
+        OutlinedTextField(
+            value = if (isRegexMode) regex else keyword,
+            onValueChange = { value ->
+                if (isRegexMode) {
+                    regex = value
+                    regexError = validateRegex(value)
+                } else {
+                    keyword = value
+                }
+            },
+            label = { Text(if (isRegexMode) "正则表达式" else "关键词/号码") },
+            leadingIcon = {
+                Icon(
+                    imageVector = if (isRegexMode) Icons.Default.Code else Icons.Default.Search,
+                    contentDescription = null
+                )
+            },
+            trailingIcon = {
+                Row {
+                    // Regex toggle
+                    IconButton(onClick = {
+                        isRegexMode = !isRegexMode
+                        if (isRegexMode) {
+                            regex = keyword
+                        } else {
+                            keyword = regex
+                        }
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Code,
+                            contentDescription = "正则模式",
+                            tint = if (isRegexMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    // Clear button
+                    if (keyword.isNotEmpty() || regex.isNotEmpty()) {
+                        IconButton(onClick = {
+                            keyword = ""
+                            regex = ""
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.Clear,
+                                contentDescription = "清除"
+                            )
+                        }
+                    }
+                }
+            },
+            isError = regexError != null,
+            supportingText = regexError?.let { { Text(it) } },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Date range section
+        Text("日期范围", style = MaterialTheme.typography.titleSmall)
+        Spacer(modifier = Modifier.height(8.dp))
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(FilterState.DateRange.entries.toList()) { dateRange ->
+                FilterChip(
+                    selected = filterState.dateRange == dateRange,
+                    onClick = {
+                        onFilterChange(filterState.copy(dateRange = dateRange))
+                    },
+                    label = { Text(getDateRangeName(dateRange)) }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Read status section
+        Text("已读状态", style = MaterialTheme.typography.titleSmall)
+        Spacer(modifier = Modifier.height(8.dp))
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(FilterState.ReadStatus.entries.toList()) { status ->
+                FilterChip(
+                    selected = filterState.readStatus == status,
+                    onClick = {
+                        onFilterChange(filterState.copy(readStatus = status))
+                    },
+                    label = { Text(getReadStatusName(status)) }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Lock status section
+        Text("锁定状态", style = MaterialTheme.typography.titleSmall)
+        Spacer(modifier = Modifier.height(8.dp))
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(FilterState.LockStatus.entries.toList()) { status ->
+                FilterChip(
+                    selected = filterState.lockStatus == status,
+                    onClick = {
+                        onFilterChange(filterState.copy(lockStatus = status))
+                    },
+                    label = { Text(getLockStatusName(status)) }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Message type section
+        Text("消息类型", style = MaterialTheme.typography.titleSmall)
+        Spacer(modifier = Modifier.height(8.dp))
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(FilterState.MessageType.entries.toList()) { type ->
+                FilterChip(
+                    selected = filterState.messageType == type,
+                    onClick = {
+                        onFilterChange(filterState.copy(messageType = type))
+                    },
+                    label = { Text(getMessageTypeName(type)) }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // SIM card section
+        Text("SIM卡", style = MaterialTheme.typography.titleSmall)
+        Spacer(modifier = Modifier.height(8.dp))
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(FilterState.SimId.entries.toList()) { simId ->
+                FilterChip(
+                    selected = filterState.simId == simId,
+                    onClick = {
+                        onFilterChange(filterState.copy(simId = simId))
+                    },
+                    label = { Text(getSimIdName(simId)) }
+                )
+            }
+        }
+
+        // Filter history section
+        if (filterHistory.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("最近使用", style = MaterialTheme.typography.titleSmall)
+                TextButton(onClick = onClearHistory) {
+                    Text("清除全部")
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(filterHistory) { history ->
+                    SuggestionChip(
+                        onClick = {
+                            keyword = history
+                            onFilterChange(filterState.copy(keyword = history))
+                        },
+                        label = { Text(history) }
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Bottom buttons
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
+        ) {
+            TextButton(
+                onClick = {
+                    keyword = ""
+                    regex = ""
+                    isRegexMode = false
+                    regexError = null
+                    onClearFilters()
+                }
+            ) {
+                Text("重置")
+            }
+            Button(
+                onClick = {
+                    onFilterChange(
+                        filterState.copy(
+                            keyword = keyword,
+                            regex = regex,
+                            isRegexMode = isRegexMode
+                        )
+                    )
+                    onApply()
+                }
+            ) {
+                Text("应用")
+            }
+        }
+    }
+}

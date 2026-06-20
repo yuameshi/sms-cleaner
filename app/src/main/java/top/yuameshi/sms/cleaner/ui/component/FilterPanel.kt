@@ -275,7 +275,7 @@ fun FilterPanel(
     }
 }
 
-private fun validateRegex(regex: String): String? {
+internal fun validateRegex(regex: String): String? {
     if (regex.isEmpty()) return null
     return try {
         Regex(regex)
@@ -285,7 +285,7 @@ private fun validateRegex(regex: String): String? {
     }
 }
 
-private fun getDateRangeName(dateRange: FilterState.DateRange): String {
+internal fun getDateRangeName(dateRange: FilterState.DateRange): String {
     return when (dateRange) {
         FilterState.DateRange.ALL -> "全部"
         FilterState.DateRange.TODAY -> "今天"
@@ -296,7 +296,7 @@ private fun getDateRangeName(dateRange: FilterState.DateRange): String {
     }
 }
 
-private fun getReadStatusName(status: FilterState.ReadStatus): String {
+internal fun getReadStatusName(status: FilterState.ReadStatus): String {
     return when (status) {
         FilterState.ReadStatus.ALL -> "全部"
         FilterState.ReadStatus.READ -> "已读"
@@ -304,7 +304,7 @@ private fun getReadStatusName(status: FilterState.ReadStatus): String {
     }
 }
 
-private fun getLockStatusName(status: FilterState.LockStatus): String {
+internal fun getLockStatusName(status: FilterState.LockStatus): String {
     return when (status) {
         FilterState.LockStatus.ALL -> "全部"
         FilterState.LockStatus.LOCKED -> "锁定"
@@ -312,7 +312,7 @@ private fun getLockStatusName(status: FilterState.LockStatus): String {
     }
 }
 
-private fun getMessageTypeName(type: FilterState.MessageType): String {
+internal fun getMessageTypeName(type: FilterState.MessageType): String {
     return when (type) {
         FilterState.MessageType.ALL -> "全部"
         FilterState.MessageType.INBOX -> "收件箱"
@@ -322,7 +322,7 @@ private fun getMessageTypeName(type: FilterState.MessageType): String {
     }
 }
 
-private fun getSimIdName(simId: FilterState.SimId): String {
+internal fun getSimIdName(simId: FilterState.SimId): String {
     return when (simId) {
         FilterState.SimId.ALL -> "全部"
         FilterState.SimId.SIM1 -> "SIM1"
