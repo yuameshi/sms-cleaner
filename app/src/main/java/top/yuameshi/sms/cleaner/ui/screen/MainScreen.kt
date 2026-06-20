@@ -113,7 +113,7 @@ fun MainScreen(
                 )
             }
         },
-        gesturesEnabled = drawerState.isOpen
+        gesturesEnabled = true
     ) {
         Scaffold(
             modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
