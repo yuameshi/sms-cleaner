@@ -1,14 +1,11 @@
 package top.yuameshi.sms.cleaner.ui.component
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,12 +20,11 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.yuameshi.sms.cleaner.data.model.SmsMessage
-import top.yuameshi.sms.cleaner.ui.theme.DeleteRed
 import top.yuameshi.sms.cleaner.ui.theme.HighlightYellow
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SmsListItem(
     message: SmsMessage,
@@ -37,219 +33,165 @@ fun SmsListItem(
     keyword: String,
     onItemClick: () -> Unit,
     onLongClick: () -> Unit,
-    onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var isExpanded by remember { mutableStateOf(false) }
     val maxLength = 100
 
-    val dismissState = rememberDismissState(
-        confirmValueChange = { dismissValue ->
-            if (dismissValue == DismissValue.DismissedToStart) {
-                onDeleteClick()
-                false
-            } else {
-                false
-            }
-        }
-    )
-
-    SwipeToDismiss(
-        state = dismissState,
-        modifier = modifier,
-        directions = setOf(DismissDirection.EndToStart),
-        background = {
-            val color by animateColorAsState(
-                when (dismissState.targetValue) {
-                    DismissValue.DismissedToStart -> DeleteRed
-                    else -> Color.LightGray
-                },
-                label = "swipe_color"
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(color)
-                    .padding(16.dp),
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "删除",
-                    tint = Color.White
-                )
-            }
-        },
-        dismissContent = {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .animateContentSize()
-                    .combinedClickable(
-                        onClick = onItemClick,
-                        onLongClick = onLongClick
-                    ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-            ) {
-                Row(
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .animateContentSize()
+            .combinedClickable(
+                onClick = onItemClick,
+                onLongClick = onLongClick
+            ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            // Selection checkbox or avatar
+            if (isMultiSelectMode) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { onItemClick() },
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.Top
+                        .size(40.dp)
+                        .padding(end = 8.dp)
+                )
+            } else {
+                // Avatar
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
                 ) {
-                    // Selection checkbox or avatar
-                    if (isMultiSelectMode) {
-                        Checkbox(
-                            checked = isSelected,
-                            onCheckedChange = { onItemClick() },
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                    } else {
-                        // Avatar
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = getInitial(message),
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            )
-                        }
-                    }
+                    Text(
+                        text = getInitial(message),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
+                    )
+                }
+            }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(12.dp))
 
-                    // Content
-                    Column(
+            // Content
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                // Header row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Contact name or number
+                    Text(
+                        text = message.contactName ?: message.address,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
+                    )
+
+                    // Date
+                    Text(
+                        text = formatDate(message.date),
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                // Message body
+                val bodyText = if (message.body.length > maxLength && !isExpanded) {
+                    message.body.take(maxLength) + "..."
+                } else {
+                    message.body
+                }
+
+                if (keyword.isNotEmpty()) {
+                    Text(
+                        text = highlightKeyword(bodyText, keyword),
+                        fontSize = 14.sp,
+                        maxLines = if (isExpanded) Int.MAX_VALUE else 3,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                } else {
+                    Text(
+                        text = bodyText,
+                        fontSize = 14.sp,
+                        maxLines = if (isExpanded) Int.MAX_VALUE else 3,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                if (message.body.length > maxLength) {
+                    TextButton(
+                        onClick = { isExpanded = !isExpanded },
+                        modifier = Modifier.padding(0.dp)
                     ) {
-                        // Header row
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Contact name or number
-                            Text(
-                                text = message.contactName ?: message.address,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
-                            )
+                        Text(
+                            text = if (isExpanded) "收起" else "展开",
+                            fontSize = 12.sp
+                        )
+                    }
+                }
 
-                            // Date
-                            Text(
-                                text = formatDate(message.date),
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                Spacer(modifier = Modifier.height(4.dp))
 
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        // Message body
-                        val bodyText = if (message.body.length > maxLength && !isExpanded) {
-                            message.body.take(maxLength) + "..."
-                        } else {
-                            message.body
-                        }
-
-                        if (keyword.isNotEmpty()) {
-                            Text(
-                                text = highlightKeyword(bodyText, keyword),
-                                fontSize = 14.sp,
-                                maxLines = if (isExpanded) Int.MAX_VALUE else 3,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        } else {
-                            Text(
-                                text = bodyText,
-                                fontSize = 14.sp,
-                                maxLines = if (isExpanded) Int.MAX_VALUE else 3,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-
-                        if (message.body.length > maxLength) {
-                            TextButton(
-                                onClick = { isExpanded = !isExpanded },
-                                modifier = Modifier.padding(0.dp)
-                            ) {
-                                Text(
-                                    text = if (isExpanded) "收起" else "展开",
-                                    fontSize = 12.sp
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        // Footer row
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Type badge
-                            Surface(
-                                shape = MaterialTheme.shapes.small,
-                                color = getTypeColor(message.type),
-                                modifier = Modifier.padding(end = 8.dp)
-                            ) {
+                // Footer row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Type badge
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = getTypeColor(message.type),
+                        modifier = Modifier.padding(end = 8.dp)
+                    ) {
                                 Text(
                                     text = SmsMessage.getTypeName(message.type),
                                     fontSize = 10.sp,
-                                    color = Color.White,
+                                    color = Color.Black,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
-                            }
-
-                            // SIM card
-                            Text(
-                                text = "SIM ${message.subId}",
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-
-                            // Read status
-                            if (!message.read) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary)
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.weight(1f))
-
-                            // Delete button (only in non-multi-select mode)
-                            if (!isMultiSelectMode) {
-                                IconButton(
-                                    onClick = onDeleteClick,
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Delete,
-                                        contentDescription = "删除",
-                                        tint = MaterialTheme.colorScheme.error,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                }
-                            }
-                        }
                     }
+
+                    // SIM card
+                    Text(
+                        text = "SIM ${message.subId}",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    // Read status indicator
+                    if (!message.read) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
-    )
+    }
 }
 
 private fun getInitial(message: SmsMessage): String {
@@ -280,11 +222,11 @@ private fun formatDate(timestamp: Long): String {
 
 private fun getTypeColor(type: Int): Color {
     return when (type) {
-        SmsMessage.TYPE_INBOX -> Color(0xFF4CAF50)
-        SmsMessage.TYPE_SENT -> Color(0xFF2196F3)
-        SmsMessage.TYPE_DRAFT -> Color(0xFFFF9800)
-        SmsMessage.TYPE_OUTBOX -> Color(0xFF9C27B0)
-        else -> Color.Gray
+        SmsMessage.TYPE_INBOX -> Color(0xFFE8F5E9)   // Soft green
+        SmsMessage.TYPE_SENT -> Color(0xFFE3F2FD)    // Soft blue
+        SmsMessage.TYPE_DRAFT -> Color(0xFFFFF3E0)   // Soft orange
+        SmsMessage.TYPE_OUTBOX -> Color(0xFFF3E5F5)  // Soft purple
+        else -> Color.LightGray
     }
 }
 
