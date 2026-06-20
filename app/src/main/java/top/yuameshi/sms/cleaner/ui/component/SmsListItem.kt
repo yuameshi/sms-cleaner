@@ -1,11 +1,14 @@
 package top.yuameshi.sms.cleaner.ui.component
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,10 +24,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.yuameshi.sms.cleaner.data.model.SmsMessage
 import top.yuameshi.sms.cleaner.ui.theme.HighlightYellow
+import top.yuameshi.sms.cleaner.ui.theme.TypeTagInbox
+import top.yuameshi.sms.cleaner.ui.theme.TypeTagSent
+import top.yuameshi.sms.cleaner.ui.theme.TypeTagDraft
+import top.yuameshi.sms.cleaner.ui.theme.TypeTagOutbox
+import top.yuameshi.sms.cleaner.ui.theme.TypeTagDefault
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun SmsListItem(
     message: SmsMessage,
@@ -33,11 +41,94 @@ fun SmsListItem(
     keyword: String,
     onItemClick: () -> Unit,
     onLongClick: () -> Unit,
+    onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var isExpanded by remember { mutableStateOf(false) }
     val maxLength = 100
 
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { dismissValue ->
+            if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
+                if (isMultiSelectMode) {
+                    // In multi-select mode, select the item instead of deleting
+                    onItemClick()
+                    false // Don't dismiss
+                } else {
+                    onDeleteClick()
+                    false
+                }
+            } else {
+                false
+            }
+        }
+    )
+
+    SwipeToDismissBox(
+        state = dismissState,
+        modifier = modifier,
+        enableDismissFromStartToEnd = false,
+        backgroundContent = {
+            val color by animateColorAsState(
+                when (dismissState.targetValue) {
+                    SwipeToDismissBoxValue.EndToStart -> {
+                        if (isMultiSelectMode) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            Color(0xFFF44336) // DeleteRed
+                        }
+                    }
+                    else -> Color.LightGray
+                },
+                label = "swipe_color"
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(color)
+                    .padding(16.dp),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                Icon(
+                    imageVector = if (isMultiSelectMode) {
+                        Icons.Default.CheckCircle
+                    } else {
+                        Icons.Default.Delete
+                    },
+                    contentDescription = if (isMultiSelectMode) "选中" else "删除",
+                    tint = Color.White
+                )
+            }
+        }
+    ) {
+        CardContent(
+            message = message,
+            isSelected = isSelected,
+            isMultiSelectMode = isMultiSelectMode,
+            keyword = keyword,
+            isExpanded = isExpanded,
+            maxLength = maxLength,
+            onItemClick = onItemClick,
+            onLongClick = onLongClick,
+            onToggleExpand = { isExpanded = !isExpanded }
+        )
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun CardContent(
+    message: SmsMessage,
+    isSelected: Boolean,
+    isMultiSelectMode: Boolean,
+    keyword: String,
+    isExpanded: Boolean,
+    maxLength: Int,
+    onItemClick: () -> Unit,
+    onLongClick: () -> Unit,
+    onToggleExpand: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -138,7 +229,7 @@ fun SmsListItem(
 
                 if (message.body.length > maxLength) {
                     TextButton(
-                        onClick = { isExpanded = !isExpanded },
+                        onClick = onToggleExpand,
                         modifier = Modifier.padding(0.dp)
                     ) {
                         Text(
@@ -162,12 +253,12 @@ fun SmsListItem(
                         color = getTypeColor(message.type),
                         modifier = Modifier.padding(end = 8.dp)
                     ) {
-                                Text(
-                                    text = SmsMessage.getTypeName(message.type),
-                                    fontSize = 10.sp,
-                                    color = Color.Black,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
+                        Text(
+                            text = SmsMessage.getTypeName(message.type),
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
                     }
 
                     // SIM card
@@ -222,11 +313,11 @@ private fun formatDate(timestamp: Long): String {
 
 private fun getTypeColor(type: Int): Color {
     return when (type) {
-        SmsMessage.TYPE_INBOX -> Color(0xFFE8F5E9)   // Soft green
-        SmsMessage.TYPE_SENT -> Color(0xFFE3F2FD)    // Soft blue
-        SmsMessage.TYPE_DRAFT -> Color(0xFFFFF3E0)   // Soft orange
-        SmsMessage.TYPE_OUTBOX -> Color(0xFFF3E5F5)  // Soft purple
-        else -> Color.LightGray
+        SmsMessage.TYPE_INBOX -> TypeTagInbox
+        SmsMessage.TYPE_SENT -> TypeTagSent
+        SmsMessage.TYPE_DRAFT -> TypeTagDraft
+        SmsMessage.TYPE_OUTBOX -> TypeTagOutbox
+        else -> TypeTagDefault
     }
 }
 
