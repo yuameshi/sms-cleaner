@@ -23,8 +23,8 @@ import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import top.yuameshi.sms.cleaner.ui.component.DeleteConfirmDialog
+import top.yuameshi.sms.cleaner.ui.component.DrawerFilterPanel
 import top.yuameshi.sms.cleaner.ui.component.ExportDialog
-import top.yuameshi.sms.cleaner.ui.component.FilterPanel
 import top.yuameshi.sms.cleaner.ui.component.ImportDialog
 import top.yuameshi.sms.cleaner.ui.component.SmsListItem
 import top.yuameshi.sms.cleaner.util.DefaultSmsManager
@@ -53,11 +53,13 @@ fun MainScreen(
     val filterHistory by viewModel.filterHistory.collectAsStateWithLifecycle()
     val previewMessages by viewModel.previewMessages.collectAsStateWithLifecycle()
 
-    var showFilterPanel by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
     var showImportDialog by remember { mutableStateOf(false) }
     var showDefaultSmsDialog by remember { mutableStateOf(false) }
+
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
 
     val defaultSmsLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -92,68 +94,77 @@ fun MainScreen(
 
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
-    Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = if (selectionState.isMultiSelectMode) {
-                            "已选择 ${selectionState.selectedCount} 条"
-                        } else {
-                            "SMS Cleaner"
-                        }
-                    )
-                },
-                subtitle = {
-                    when (val state = uiState) {
-                        is SmsUiState.Success -> {
-                            if (filterState.hasFilters()) {
-                                Text("共 ${state.totalCount} 条 | 筛选 ${state.filteredCount} 条")
-                            } else {
-                                Text("共 ${state.totalCount} 条短信")
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet(
+                modifier = Modifier.width(280.dp)
+            ) {
+                DrawerFilterPanel(
+                    filterState = filterState,
+                    filterHistory = filterHistory,
+                    onFilterChange = { viewModel.updateFilter(it) },
+                    onClearFilters = { viewModel.clearFilters() },
+                    onClearHistory = { viewModel.clearFilterHistory() },
+                    onApply = {
+                        scope.launch { drawerState.close() }
+                    }
+                )
+            }
+        },
+        gesturesEnabled = drawerState.isOpen
+    ) {
+        Scaffold(
+            modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text(
+                                text = if (selectionState.isMultiSelectMode) {
+                                    "已选择 ${selectionState.selectedCount} 条"
+                                } else {
+                                    "SMS Cleaner"
+                                }
+                            )
+                            if (!selectionState.isMultiSelectMode) {
+                                when (val state = uiState) {
+                                    is SmsUiState.Success -> {
+                                        Text(
+                                            text = if (filterState.hasFilters()) {
+                                                "共 ${state.totalCount} 条 | 筛选 ${state.filteredCount} 条"
+                                            } else {
+                                                "共 ${state.totalCount} 条短信"
+                                            },
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    else -> {}
+                                }
                             }
                         }
-                        else -> {}
-                    }
-                },
-                scrollBehavior = scrollBehavior,
-                navigationIcon = {
-                    if (selectionState.isMultiSelectMode) {
-                        IconButton(onClick = { viewModel.exitMultiSelectMode() }) {
-                            Icon(Icons.Default.Close, contentDescription = "取消")
+                    },
+                    scrollBehavior = scrollBehavior,
+                    navigationIcon = {
+                        if (selectionState.isMultiSelectMode) {
+                            IconButton(onClick = { viewModel.exitMultiSelectMode() }) {
+                                Icon(Icons.Default.Close, contentDescription = "取消")
+                            }
                         }
-                    }
-                },
-                actions = {
-                    if (!selectionState.isMultiSelectMode) {
-                        TooltipBox(
-                            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(),
-                            tooltip = { PlainTooltip { Text("筛选") } },
-                            state = rememberTooltipState()
-                        ) {
-                            IconButton(onClick = { showFilterPanel = !showFilterPanel }) {
+                    },
+                    actions = {
+                        if (!selectionState.isMultiSelectMode) {
+                            IconButton(onClick = { scope.launch { drawerState.open() } }) {
                                 Icon(
                                     imageVector = Icons.Default.FilterList,
                                     contentDescription = "筛选",
                                     tint = if (filterState.hasFilters()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                                 )
                             }
-                        }
-                        TooltipBox(
-                            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(),
-                            tooltip = { PlainTooltip { Text("导出CSV") } },
-                            state = rememberTooltipState()
-                        ) {
                             IconButton(onClick = { showExportDialog = true }) {
                                 Icon(Icons.Default.GetApp, contentDescription = "导出")
                             }
-                        }
-                        TooltipBox(
-                            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(),
-                            tooltip = { PlainTooltip { Text("导入CSV") } },
-                            state = rememberTooltipState()
-                        ) {
                             IconButton(onClick = {
                                 if (isDefaultSmsApp) {
                                     showImportDialog = true
@@ -165,9 +176,8 @@ fun MainScreen(
                             }
                         }
                     }
-                }
-            )
-        },
+                )
+            },
         bottomBar = {
             if (selectionState.isMultiSelectMode) {
                 BottomAppBar {
@@ -193,9 +203,21 @@ fun MainScreen(
                                 Text("全选", style = MaterialTheme.typography.labelSmall)
                             }
                         }
+                        IconButton(onClick = { viewModel.invertSelection() }) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.Flip, contentDescription = "反选")
+                                Text("反选", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
+                        IconButton(onClick = { viewModel.deselectAll() }) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.Deselect, contentDescription = "取消全选")
+                                Text("取消全选", style = MaterialTheme.typography.labelSmall)
+                            }
+                        }
                         IconButton(onClick = { showExportDialog = true }) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Default.FileDownload, contentDescription = "导出")
+                                Icon(Icons.Default.GetApp, contentDescription = "导出")
                                 Text("导出", style = MaterialTheme.typography.labelSmall)
                             }
                         }
@@ -210,17 +232,6 @@ fun MainScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Filter panel
-            if (showFilterPanel) {
-                FilterPanel(
-                    filterState = filterState,
-                    filterHistory = filterHistory,
-                    onFilterChange = { viewModel.updateFilter(it) },
-                    onClearFilters = { viewModel.clearFilters() },
-                    onClearHistory = { viewModel.clearFilterHistory() }
-                )
-            }
-
             // Content
             if (!hasPermissions) {
                 // Permission not granted state
@@ -354,6 +365,7 @@ fun MainScreen(
                 }
             }
         }
+    }
     }
 
     // Delete confirmation dialog
