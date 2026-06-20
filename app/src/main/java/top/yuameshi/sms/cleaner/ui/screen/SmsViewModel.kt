@@ -213,18 +213,6 @@ class SmsViewModel @Inject constructor(
         }
     }
 
-    fun deleteSingleMessage(messageId: String) {
-        viewModelScope.launch {
-            try {
-                val deletedCount = deleteSmsUseCase(listOf(messageId))
-                _operationState.value = OperationState.Success("成功删除 $deletedCount 条短信")
-                loadMessages()
-            } catch (e: Exception) {
-                _operationState.value = OperationState.Error(e.message ?: "删除失败")
-            }
-        }
-    }
-
     fun exportMessages(exportAll: Boolean, uri: Uri) {
         viewModelScope.launch {
             _operationState.value = OperationState.Progress(0, 0)
