@@ -67,6 +67,17 @@
             </intent-filter>
         </receiver>
 
+        <!-- MMS Receiver (required for default SMS app eligibility) -->
+        <receiver
+            android:name=".receiver.MmsReceiver"
+            android:permission="android.permission.BROADCAST_WAP_PUSH"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.MMS_DELIVER" />
+                <data android:mimeType="application/vnd.wap.mms-message" />
+            </intent-filter>
+        </receiver>
+
         <!-- Send SMS Activity (required for default SMS app eligibility) -->
         <activity
             android:name=".receiver.ComposeSmsActivity"
