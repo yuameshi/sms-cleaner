@@ -28,6 +28,7 @@ import top.yuameshi.sms.cleaner.ui.component.ExportDialog
 import top.yuameshi.sms.cleaner.ui.component.ImportDialog
 import top.yuameshi.sms.cleaner.ui.component.SmsListItem
 import top.yuameshi.sms.cleaner.util.DefaultSmsManager
+import kotlinx.coroutines.launch
 
 fun Context.findActivity(): Activity? {
     var context = this
@@ -269,7 +270,31 @@ fun MainScreen(
                         )
                     }
                 }
-            } else when (val state = uiState) {
+            } else {
+                // Search Bar
+                OutlinedTextField(
+                    value = filterState.keyword,
+                    onValueChange = { keyword ->
+                        viewModel.updateFilter(filterState.copy(keyword = keyword))
+                    },
+                    label = { Text("搜索短信") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                    trailingIcon = {
+                        IconButton(onClick = {
+                            scope.launch {
+                                if (drawerState.isClosed) drawerState.open() else drawerState.close()
+                            }
+                        }) {
+                            Icon(Icons.Default.FilterList, contentDescription = "筛选")
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    singleLine = true
+                )
+
+                when (val state = uiState) {
                 is SmsUiState.Loading -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -373,8 +398,8 @@ fun MainScreen(
                     }
                 }
             }
+            }
         }
-    }
     }
 
     // Delete confirmation dialog
@@ -486,5 +511,6 @@ fun MainScreen(
             )
         }
         else -> {}
+    }
     }
 }
