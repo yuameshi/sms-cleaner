@@ -242,36 +242,6 @@ fun MainScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
         ) {
-            // Search bar
-            OutlinedTextField(
-                value = filterState.keyword,
-                onValueChange = { viewModel.updateFilter(filterState.copy(keyword = it)) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                placeholder = { Text("搜索短信...") },
-                leadingIcon = {
-                    Icon(Icons.Default.Search, contentDescription = "搜索")
-                },
-                trailingIcon = {
-                    Row {
-                        IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                            Icon(
-                                imageVector = Icons.Default.FilterList,
-                                contentDescription = "筛选",
-                                tint = if (filterState.hasFilters()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        if (filterState.keyword.isNotEmpty()) {
-                            IconButton(onClick = { viewModel.updateFilter(filterState.copy(keyword = "")) }) {
-                                Icon(Icons.Default.Clear, contentDescription = "清除")
-                            }
-                        }
-                    }
-                },
-                singleLine = true
-            )
-
             // Content
             if (!hasPermissions) {
                 // Permission not granted state
