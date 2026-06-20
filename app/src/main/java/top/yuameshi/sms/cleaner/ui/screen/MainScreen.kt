@@ -16,6 +16,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
@@ -89,7 +90,10 @@ fun MainScreen(
         }
     }
 
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
             TopAppBar(
                 title = {
@@ -101,6 +105,19 @@ fun MainScreen(
                         }
                     )
                 },
+                subtitle = {
+                    when (val state = uiState) {
+                        is SmsUiState.Success -> {
+                            if (filterState.hasFilters()) {
+                                Text("共 ${state.totalCount} 条 | 筛选 ${state.filteredCount} 条")
+                            } else {
+                                Text("共 ${state.totalCount} 条短信")
+                            }
+                        }
+                        else -> {}
+                    }
+                },
+                scrollBehavior = scrollBehavior,
                 navigationIcon = {
                     if (selectionState.isMultiSelectMode) {
                         IconButton(onClick = { viewModel.exitMultiSelectMode() }) {
@@ -110,24 +127,42 @@ fun MainScreen(
                 },
                 actions = {
                     if (!selectionState.isMultiSelectMode) {
-                        IconButton(onClick = { showFilterPanel = !showFilterPanel }) {
-                            Icon(
-                                imageVector = Icons.Default.FilterList,
-                                contentDescription = "筛选",
-                                tint = if (filterState.hasFilters()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        IconButton(onClick = { showExportDialog = true }) {
-                            Icon(Icons.Default.FileDownload, contentDescription = "导出")
-                        }
-                        IconButton(onClick = {
-                            if (isDefaultSmsApp) {
-                                showImportDialog = true
-                            } else {
-                                showDefaultSmsDialog = true
+                        TooltipBox(
+                            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(),
+                            tooltip = { PlainTooltip { Text("筛选") } },
+                            state = rememberTooltipState()
+                        ) {
+                            IconButton(onClick = { showFilterPanel = !showFilterPanel }) {
+                                Icon(
+                                    imageVector = Icons.Default.FilterList,
+                                    contentDescription = "筛选",
+                                    tint = if (filterState.hasFilters()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                )
                             }
-                        }) {
-                            Icon(Icons.Default.FileUpload, contentDescription = "导入")
+                        }
+                        TooltipBox(
+                            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(),
+                            tooltip = { PlainTooltip { Text("导出CSV") } },
+                            state = rememberTooltipState()
+                        ) {
+                            IconButton(onClick = { showExportDialog = true }) {
+                                Icon(Icons.Default.GetApp, contentDescription = "导出")
+                            }
+                        }
+                        TooltipBox(
+                            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(),
+                            tooltip = { PlainTooltip { Text("导入CSV") } },
+                            state = rememberTooltipState()
+                        ) {
+                            IconButton(onClick = {
+                                if (isDefaultSmsApp) {
+                                    showImportDialog = true
+                                } else {
+                                    showDefaultSmsDialog = true
+                                }
+                            }) {
+                                Icon(Icons.Default.Publish, contentDescription = "导入")
+                            }
                         }
                     }
                 }
@@ -184,30 +219,6 @@ fun MainScreen(
                     onClearFilters = { viewModel.clearFilters() },
                     onClearHistory = { viewModel.clearFilterHistory() }
                 )
-            }
-
-            // Statistics
-            when (val state = uiState) {
-                is SmsUiState.Success -> {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = "共 ${state.totalCount} 条短信",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        if (filterState.hasFilters()) {
-                            Text(
-                                text = "筛选 ${state.filteredCount} 条",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    }
-                }
-                else -> {}
             }
 
             // Content
@@ -293,10 +304,6 @@ fun MainScreen(
                                         if (!selectionState.isMultiSelectMode) {
                                             viewModel.enterMultiSelectMode(message.id)
                                         }
-                                    },
-                                    onDeleteClick = {
-                                        viewModel.enterMultiSelectMode(message.id)
-                                        showDeleteDialog = true
                                     }
                                 )
                             }
