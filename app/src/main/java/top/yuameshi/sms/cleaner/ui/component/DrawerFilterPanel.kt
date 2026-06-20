@@ -33,7 +33,7 @@ fun DrawerFilterPanel(
     Column(
         modifier = modifier
             .fillMaxHeight()
-            .width(320.dp)
+            .fillMaxWidth()
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
