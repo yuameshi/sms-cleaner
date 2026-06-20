@@ -181,6 +181,14 @@ class SmsViewModel @Inject constructor(
         _selectionState.value = _selectionState.value.selectAll(filteredCount)
     }
 
+    fun invertSelection() {
+        _selectionState.value = _selectionState.value.invertSelection(allMessages.map { it.id })
+    }
+
+    fun deselectAll() {
+        _selectionState.value = _selectionState.value.deselectAll()
+    }
+
     fun clearSelection() {
         _selectionState.value = _selectionState.value.clearSelection()
     }
@@ -198,6 +206,18 @@ class SmsViewModel @Inject constructor(
 
                 _operationState.value = OperationState.Success("成功删除 $deletedCount 条短信")
                 _selectionState.value = SelectionState()
+                loadMessages()
+            } catch (e: Exception) {
+                _operationState.value = OperationState.Error(e.message ?: "删除失败")
+            }
+        }
+    }
+
+    fun deleteSingleMessage(messageId: String) {
+        viewModelScope.launch {
+            try {
+                val deletedCount = deleteSmsUseCase(listOf(messageId))
+                _operationState.value = OperationState.Success("成功删除 $deletedCount 条短信")
                 loadMessages()
             } catch (e: Exception) {
                 _operationState.value = OperationState.Error(e.message ?: "删除失败")

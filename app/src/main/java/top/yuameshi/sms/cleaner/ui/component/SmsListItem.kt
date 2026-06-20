@@ -1,14 +1,11 @@
 package top.yuameshi.sms.cleaner.ui.component
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,7 +29,7 @@ import top.yuameshi.sms.cleaner.ui.theme.TypeTagDefault
 import java.text.SimpleDateFormat
 import java.util.*
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SmsListItem(
     message: SmsMessage,
@@ -41,94 +38,11 @@ fun SmsListItem(
     keyword: String,
     onItemClick: () -> Unit,
     onLongClick: () -> Unit,
-    onDeleteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var isExpanded by remember { mutableStateOf(false) }
     val maxLength = 100
 
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { dismissValue ->
-            if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
-                if (isMultiSelectMode) {
-                    // In multi-select mode, select the item instead of deleting
-                    onItemClick()
-                    false // Don't dismiss
-                } else {
-                    onDeleteClick()
-                    false
-                }
-            } else {
-                false
-            }
-        }
-    )
-
-    SwipeToDismissBox(
-        state = dismissState,
-        modifier = modifier,
-        enableDismissFromStartToEnd = false,
-        backgroundContent = {
-            val color by animateColorAsState(
-                when (dismissState.targetValue) {
-                    SwipeToDismissBoxValue.EndToStart -> {
-                        if (isMultiSelectMode) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            Color(0xFFF44336) // DeleteRed
-                        }
-                    }
-                    else -> Color.LightGray
-                },
-                label = "swipe_color"
-            )
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(color)
-                    .padding(16.dp),
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                Icon(
-                    imageVector = if (isMultiSelectMode) {
-                        Icons.Default.CheckCircle
-                    } else {
-                        Icons.Default.Delete
-                    },
-                    contentDescription = if (isMultiSelectMode) "选中" else "删除",
-                    tint = Color.White
-                )
-            }
-        }
-    ) {
-        CardContent(
-            message = message,
-            isSelected = isSelected,
-            isMultiSelectMode = isMultiSelectMode,
-            keyword = keyword,
-            isExpanded = isExpanded,
-            maxLength = maxLength,
-            onItemClick = onItemClick,
-            onLongClick = onLongClick,
-            onToggleExpand = { isExpanded = !isExpanded }
-        )
-    }
-}
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun CardContent(
-    message: SmsMessage,
-    isSelected: Boolean,
-    isMultiSelectMode: Boolean,
-    keyword: String,
-    isExpanded: Boolean,
-    maxLength: Int,
-    onItemClick: () -> Unit,
-    onLongClick: () -> Unit,
-    onToggleExpand: () -> Unit,
-    modifier: Modifier = Modifier
-) {
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -229,7 +143,7 @@ private fun CardContent(
 
                 if (message.body.length > maxLength) {
                     TextButton(
-                        onClick = onToggleExpand,
+                        onClick = { isExpanded = !isExpanded },
                         modifier = Modifier.padding(0.dp)
                     ) {
                         Text(

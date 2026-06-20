@@ -36,6 +36,22 @@ data class SelectionState(
         )
     }
 
+    fun deselectAll(): SelectionState {
+        return copy(
+            selectedIds = emptySet(),
+            isSelectAll = false,
+            totalFilteredCount = 0
+        )
+    }
+
+    fun invertSelection(allIds: List<Long>): SelectionState {
+        val newSelected = allIds.toSet() - selectedIds
+        return copy(
+            selectedIds = newSelected,
+            isSelectAll = false
+        )
+    }
+
     fun enterMultiSelectMode(id: Long): SelectionState {
         return copy(
             isMultiSelectMode = true,
