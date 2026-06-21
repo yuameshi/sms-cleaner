@@ -2,42 +2,64 @@ package top.yuameshi.sms.cleaner.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Light Theme Colors
-val BluePrimary = Color(0xFF2196F3)
-val BluePrimaryVariant = Color(0xFF1976D2)
-val BlueOnPrimary = Color.White
-val BlueSecondary = Color(0xFF03DAC6)
-val BlueOnSecondary = Color.Black
-val BlueBackground = Color(0xFFF5F5F5)
-val BlueSurface = Color.White
-val BlueOnBackground = Color(0xFF1C1B1F)
-val BlueOnSurface = Color(0xFF1C1B1F)
-val BlueError = Color(0xFFF44336)
-val BlueOnError = Color.White
+// Material You Baseline - Light Theme Colors
+val M3Primary = Color(0xFF6750A4)
+val M3OnPrimary = Color(0xFFFFFFFF)
+val M3PrimaryContainer = Color(0xFFEADDFF)
+val M3OnPrimaryContainer = Color(0xFF21005D)
+val M3Secondary = Color(0xFF625B71)
+val M3OnSecondary = Color(0xFFFFFFFF)
+val M3SecondaryContainer = Color(0xFFE8DEF8)
+val M3OnSecondaryContainer = Color(0xFF1D192B)
+val M3Tertiary = Color(0xFF7D5260)
+val M3OnTertiary = Color(0xFFFFFFFF)
+val M3TertiaryContainer = Color(0xFFFFD8E4)
+val M3OnTertiaryContainer = Color(0xFF31111D)
+val M3Background = Color(0xFFFFFBFE)
+val M3OnBackground = Color(0xFF1C1B1F)
+val M3Surface = Color(0xFFFFFBFE)
+val M3OnSurface = Color(0xFF1C1B1F)
+val M3SurfaceVariant = Color(0xFFE7E0EC)
+val M3OnSurfaceVariant = Color(0xFF49454F)
+val M3Error = Color(0xFFB3261E)
+val M3OnError = Color(0xFFFFFFFF)
+val M3ErrorContainer = Color(0xFFF9DEDC)
+val M3OnErrorContainer = Color(0xFF410E0B)
+val M3Outline = Color(0xFF79747E)
+val M3OutlineVariant = Color(0xFFCAC4D0)
+val M3InverseSurface = Color(0xFF313033)
+val M3InverseOnSurface = Color(0xFFF4EFF4)
+val M3InversePrimary = Color(0xFFD0BCFF)
+val M3Scrim = Color(0xFF000000)
 
-// Dark Theme Colors
-val BlueDarkPrimary = Color(0xFF90CAF9)
-val BlueDarkPrimaryVariant = Color(0xFF64B5F6)
-val BlueDarkOnPrimary = Color.Black
-val BlueDarkSecondary = Color(0xFF03DAC6)
-val BlueDarkOnSecondary = Color.Black
-val BlueDarkBackground = Color(0xFF121212)
-val BlueDarkSurface = Color(0xFF1E1E1E)
-val BlueDarkOnBackground = Color(0xFFE6E1E5)
-val BlueDarkOnSurface = Color(0xFFE6E1E5)
-val BlueDarkError = Color(0xFFEF9A9A)
-val BlueDarkOnError = Color.Black
+// Material You Baseline - Dark Theme Colors
+val M3DarkPrimary = Color(0xFFD0BCFF)
+val M3DarkOnPrimary = Color(0xFF381E72)
+val M3DarkPrimaryContainer = Color(0xFF4F378B)
+val M3DarkOnPrimaryContainer = Color(0xFFEADDFF)
+val M3DarkSecondary = Color(0xFFCCC2DC)
+val M3DarkOnSecondary = Color(0xFF332D41)
+val M3DarkSecondaryContainer = Color(0xFF4A4458)
+val M3DarkOnSecondaryContainer = Color(0xFFE8DEF8)
+val M3DarkTertiary = Color(0xFFEFB8C8)
+val M3DarkOnTertiary = Color(0xFF492532)
+val M3DarkTertiaryContainer = Color(0xFF633B48)
+val M3DarkOnTertiaryContainer = Color(0xFFFFD8E4)
+val M3DarkBackground = Color(0xFF1C1B1F)
+val M3DarkOnBackground = Color(0xFFE6E1E5)
+val M3DarkSurface = Color(0xFF1C1B1F)
+val M3DarkOnSurface = Color(0xFFE6E1E5)
+val M3DarkSurfaceVariant = Color(0xFF49454F)
+val M3DarkOnSurfaceVariant = Color(0xFFCAC4D0)
+val M3DarkError = Color(0xFFF2B8B5)
+val M3DarkOnError = Color(0xFF601410)
+val M3DarkErrorContainer = Color(0xFF8C1D18)
+val M3DarkOnErrorContainer = Color(0xFFF9DEDC)
+val M3DarkOutline = Color(0xFF938F99)
+val M3DarkOutlineVariant = Color(0xFF49454F)
+val M3DarkInverseSurface = Color(0xFFE6E1E5)
+val M3DarkInverseOnSurface = Color(0xFF1C1B1F)
+val M3DarkInversePrimary = Color(0xFF6750A4)
+val M3DarkScrim = Color(0xFF000000)
 
-// Common Colors
-val HighlightYellow = Color(0xFFFFF9C4)
-val HighlightYellowDark = Color(0xFF3E2F00)
-val DeleteRed = Color(0xFFF44336)
-val SuccessGreen = Color(0xFF4CAF50)
-val WarningOrange = Color(0xFFFF9800)
 
-// Type Tag Colors (Soft/Muted palette)
-val TypeTagInbox = Color(0xFFE8F5E9)    // Soft Green
-val TypeTagSent = Color(0xFFE3F2FD)     // Soft Blue
-val TypeTagDraft = Color(0xFFFFF3E0)    // Soft Orange
-val TypeTagOutbox = Color(0xFFF3E5F5)   // Soft Purple
-val TypeTagDefault = Color(0xFFEEEEEE)  // Light Gray

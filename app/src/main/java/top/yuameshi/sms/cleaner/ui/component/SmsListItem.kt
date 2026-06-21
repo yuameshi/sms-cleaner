@@ -24,12 +24,6 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.yuameshi.sms.cleaner.data.model.SmsMessage
-import top.yuameshi.sms.cleaner.ui.theme.HighlightYellow
-import top.yuameshi.sms.cleaner.ui.theme.TypeTagInbox
-import top.yuameshi.sms.cleaner.ui.theme.TypeTagSent
-import top.yuameshi.sms.cleaner.ui.theme.TypeTagDraft
-import top.yuameshi.sms.cleaner.ui.theme.TypeTagOutbox
-import top.yuameshi.sms.cleaner.ui.theme.TypeTagDefault
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -290,17 +284,21 @@ private fun formatDate(timestamp: Long): String {
     }
 }
 
+@Composable
 private fun getTypeColor(type: Int): Color {
+    val colorScheme = MaterialTheme.colorScheme
     return when (type) {
-        SmsMessage.TYPE_INBOX -> TypeTagInbox
-        SmsMessage.TYPE_SENT -> TypeTagSent
-        SmsMessage.TYPE_DRAFT -> TypeTagDraft
-        SmsMessage.TYPE_OUTBOX -> TypeTagOutbox
-        else -> TypeTagDefault
+        SmsMessage.TYPE_INBOX -> colorScheme.tertiaryContainer
+        SmsMessage.TYPE_SENT -> colorScheme.primaryContainer
+        SmsMessage.TYPE_DRAFT -> colorScheme.secondaryContainer
+        SmsMessage.TYPE_OUTBOX -> colorScheme.surfaceVariant
+        else -> colorScheme.surfaceVariant
     }
 }
 
+@Composable
 private fun highlightKeyword(text: String, keyword: String): androidx.compose.ui.text.AnnotatedString {
+    val highlightBackground = MaterialTheme.colorScheme.tertiaryContainer
     return buildAnnotatedString {
         var startIndex = 0
         val lowerText = text.lowercase()
@@ -314,7 +312,7 @@ private fun highlightKeyword(text: String, keyword: String): androidx.compose.ui
             }
 
             append(text.substring(startIndex, index))
-            withStyle(style = SpanStyle(background = HighlightYellow)) {
+            withStyle(style = SpanStyle(background = highlightBackground)) {
                 append(text.substring(index, index + keyword.length))
             }
             startIndex = index + keyword.length
