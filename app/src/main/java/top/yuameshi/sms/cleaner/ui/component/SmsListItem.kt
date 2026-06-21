@@ -65,14 +65,14 @@ fun SmsListItem(
                     checked = isSelected,
                     onCheckedChange = { onItemClick() },
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(44.dp)
                         .padding(end = 8.dp)
                 )
             } else {
                 // Avatar
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(44.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center

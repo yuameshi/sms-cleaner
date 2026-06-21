@@ -35,16 +35,10 @@ val DeleteRed = Color(0xFFF44336)
 val SuccessGreen = Color(0xFF4CAF50)
 val WarningOrange = Color(0xFFFF9800)
 
-// Soft Pastel Colors for Type Tags
-val SoftGreen = Color(0xFFE8F5E9)    // Light green for INBOX
-val SoftBlue = Color(0xFFE3F2FD)     // Light blue for SENT
-val SoftOrange = Color(0xFFFFF3E0)   // Light orange for DRAFT
-val SoftPurple = Color(0xFFF3E5F5)   // Light purple for OUTBOX
-val SoftBlueContainer = Color(0xFFE3F2FD) // For Avatar background
-
 // Type Tag Colors (Soft/Muted palette)
 val TypeTagInbox = Color(0xFFE8F5E9)    // Soft Green
 val TypeTagSent = Color(0xFFE3F2FD)     // Soft Blue
 val TypeTagDraft = Color(0xFFFFF3E0)    // Soft Orange
 val TypeTagOutbox = Color(0xFFF3E5F5)   // Soft Purple
 val TypeTagDefault = Color(0xFFEEEEEE)  // Light Gray
+val SoftBlueContainer = Color(0xFFE3F2FD) // For Avatar background

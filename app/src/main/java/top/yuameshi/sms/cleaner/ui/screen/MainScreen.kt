@@ -179,7 +179,7 @@ fun MainScreen(
                     }
                 )
             },
-        bottomBar = {
+         bottomBar = {
             if (selectionState.isMultiSelectMode) {
                 BottomAppBar {
                     Row(
