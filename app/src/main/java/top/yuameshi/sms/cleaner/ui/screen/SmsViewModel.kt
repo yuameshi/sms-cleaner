@@ -29,7 +29,8 @@ sealed class SmsUiState {
         val messages: List<SmsMessage>,
         val totalCount: Int,
         val filteredCount: Int,
-        val hasMore: Boolean
+        val hasMore: Boolean,
+        val isLoading: Boolean = false
     ) : SmsUiState()
     data class Error(val message: String) : SmsUiState()
 }
@@ -107,7 +108,13 @@ class SmsViewModel @Inject constructor(
 
     fun loadMessages() {
         viewModelScope.launch {
-            _uiState.value = SmsUiState.Loading
+            // If we already have Success state, set isLoading to preserve subtitle
+            val currentState = _uiState.value
+            if (currentState is SmsUiState.Success) {
+                _uiState.value = currentState.copy(isLoading = true)
+            } else {
+                _uiState.value = SmsUiState.Loading
+            }
             try {
                 currentPage = 0
                 allMessages.clear()
@@ -122,7 +129,8 @@ class SmsViewModel @Inject constructor(
                     messages = allMessages.toList(),
                     totalCount = totalCount,
                     filteredCount = filteredCount,
-                    hasMore = allMessages.size < filteredCount
+                    hasMore = allMessages.size < filteredCount,
+                    isLoading = false
                 )
             } catch (e: Exception) {
                 _uiState.value = SmsUiState.Error(e.message ?: "加载失败")
