@@ -80,19 +80,6 @@ fun MainScreen(
         }
     }
 
-    // Handle operation state
-    LaunchedEffect(operationState) {
-        when (operationState) {
-            is OperationState.Success -> {
-                // Show snackbar or dialog
-            }
-            is OperationState.Error -> {
-                // Show error dialog
-            }
-            else -> {}
-        }
-    }
-
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     ModalNavigationDrawer(
@@ -181,6 +168,7 @@ fun MainScreen(
             },
          bottomBar = {
             if (selectionState.isMultiSelectMode) {
+                val hasSelection = selectionState.selectedCount > 0 || selectionState.isSelectAll
                 BottomAppBar {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -188,13 +176,16 @@ fun MainScreen(
                     ) {
                         // Delete
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            IconButton(onClick = {
-                                if (isDefaultSmsApp) {
-                                    showDeleteDialog = true
-                                } else {
-                                    showDefaultSmsDialog = true
-                                }
-                            }) {
+                            IconButton(
+                                onClick = {
+                                    if (isDefaultSmsApp) {
+                                        showDeleteDialog = true
+                                    } else {
+                                        showDefaultSmsDialog = true
+                                    }
+                                },
+                                enabled = hasSelection
+                            ) {
                                 Icon(Icons.Default.Delete, contentDescription = "删除")
                             }
                             Text("删除", style = MaterialTheme.typography.labelSmall)
@@ -218,7 +209,10 @@ fun MainScreen(
 
                         // Deselect All
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            IconButton(onClick = { viewModel.deselectAll() }) {
+                            IconButton(
+                                onClick = { viewModel.deselectAll() },
+                                enabled = hasSelection
+                            ) {
                                 Icon(Icons.Default.Deselect, contentDescription = "取消全选")
                             }
                             Text("取消全选", style = MaterialTheme.typography.labelSmall)
@@ -226,7 +220,10 @@ fun MainScreen(
 
                         // Export
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            IconButton(onClick = { showExportDialog = true }) {
+                            IconButton(
+                                onClick = { showExportDialog = true },
+                                enabled = hasSelection
+                            ) {
                                 Icon(Icons.Default.GetApp, contentDescription = "导出")
                             }
                             Text("导出", style = MaterialTheme.typography.labelSmall)
@@ -349,6 +346,9 @@ fun MainScreen(
                                         if (!selectionState.isMultiSelectMode) {
                                             viewModel.enterMultiSelectMode(message.id)
                                         }
+                                    },
+                                    onDeleteClick = {
+                                        viewModel.deleteSingleMessage(message.id)
                                     }
                                 )
                             }

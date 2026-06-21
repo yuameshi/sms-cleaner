@@ -41,4 +41,3 @@ val TypeTagSent = Color(0xFFE3F2FD)     // Soft Blue
 val TypeTagDraft = Color(0xFFFFF3E0)    // Soft Orange
 val TypeTagOutbox = Color(0xFFF3E5F5)   // Soft Purple
 val TypeTagDefault = Color(0xFFEEEEEE)  // Light Gray
-val SoftBlueContainer = Color(0xFFE3F2FD) // For Avatar background

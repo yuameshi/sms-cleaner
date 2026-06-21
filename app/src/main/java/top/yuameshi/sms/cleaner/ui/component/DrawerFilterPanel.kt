@@ -260,3 +260,58 @@ fun DrawerFilterPanel(
         }
     }
 }
+
+private fun validateRegex(regex: String): String? {
+    if (regex.isEmpty()) return null
+    return try {
+        Regex(regex)
+        null
+    } catch (e: Exception) {
+        "正则表达式格式不正确"
+    }
+}
+
+private fun getDateRangeName(dateRange: FilterState.DateRange): String {
+    return when (dateRange) {
+        FilterState.DateRange.ALL -> "全部"
+        FilterState.DateRange.TODAY -> "今天"
+        FilterState.DateRange.LAST_7_DAYS -> "最近7天"
+        FilterState.DateRange.LAST_30_DAYS -> "最近30天"
+        FilterState.DateRange.LAST_90_DAYS -> "最近90天"
+        FilterState.DateRange.CUSTOM -> "自定义"
+    }
+}
+
+private fun getReadStatusName(status: FilterState.ReadStatus): String {
+    return when (status) {
+        FilterState.ReadStatus.ALL -> "全部"
+        FilterState.ReadStatus.READ -> "已读"
+        FilterState.ReadStatus.UNREAD -> "未读"
+    }
+}
+
+private fun getLockStatusName(status: FilterState.LockStatus): String {
+    return when (status) {
+        FilterState.LockStatus.ALL -> "全部"
+        FilterState.LockStatus.LOCKED -> "锁定"
+        FilterState.LockStatus.UNLOCKED -> "未锁定"
+    }
+}
+
+private fun getMessageTypeName(type: FilterState.MessageType): String {
+    return when (type) {
+        FilterState.MessageType.ALL -> "全部"
+        FilterState.MessageType.INBOX -> "收件箱"
+        FilterState.MessageType.SENT -> "已发送"
+        FilterState.MessageType.DRAFT -> "草稿"
+        FilterState.MessageType.OUTBOX -> "发件箱"
+    }
+}
+
+private fun getSimIdName(simId: FilterState.SimId): String {
+    return when (simId) {
+        FilterState.SimId.ALL -> "全部"
+        FilterState.SimId.SIM1 -> "SIM1"
+        FilterState.SimId.SIM2 -> "SIM2"
+    }
+}
