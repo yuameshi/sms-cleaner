@@ -268,21 +268,39 @@ fun MainScreen(
                     }
                 }
             } else {
-                // Search Bar
+                // Search Bar with debounce
+                var searchText by remember { mutableStateOf(filterState.keyword) }
+
+                // Debounce effect: update filter after 500ms of no typing
+                LaunchedEffect(searchText) {
+                    if (searchText != filterState.keyword) {
+                        kotlinx.coroutines.delay(500)
+                        viewModel.updateFilter(filterState.copy(keyword = searchText))
+                    }
+                }
+
+                // Sync external filter state changes to local state
+                LaunchedEffect(filterState.keyword) {
+                    if (filterState.keyword != searchText) {
+                        searchText = filterState.keyword
+                    }
+                }
+
                 OutlinedTextField(
-                    value = filterState.keyword,
+                    value = searchText,
                     onValueChange = { keyword ->
-                        viewModel.updateFilter(filterState.copy(keyword = keyword))
+                        searchText = keyword
                     },
                     label = { Text("搜索短信") },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     trailingIcon = {
-                        IconButton(onClick = {
-                            scope.launch {
-                                if (drawerState.isClosed) drawerState.open() else drawerState.close()
+                        if (searchText.isNotEmpty()) {
+                            IconButton(onClick = {
+                                searchText = ""
+                                viewModel.updateFilter(filterState.copy(keyword = ""))
+                            }) {
+                                Icon(Icons.Default.Clear, contentDescription = "清空")
                             }
-                        }) {
-                            Icon(Icons.Default.FilterList, contentDescription = "筛选")
                         }
                     },
                     modifier = Modifier
