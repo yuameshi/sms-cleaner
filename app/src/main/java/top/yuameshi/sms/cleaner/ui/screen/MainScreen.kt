@@ -6,6 +6,7 @@ import android.content.ContextWrapper
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -107,7 +108,13 @@ fun MainScreen(
             modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
             topBar = {
                 TopAppBar(
-                    modifier = Modifier.shadow(elevation = 4.dp),
+                    modifier = Modifier
+                        .shadow(elevation = 4.dp)
+                        .clickable {
+                            scope.launch {
+                                listState.animateScrollToItem(0)
+                            }
+                        },
                     title = {
                         Column {
                             Text(
@@ -292,29 +299,6 @@ fun MainScreen(
                     }
                 }
 
-                OutlinedTextField(
-                    value = searchText,
-                    onValueChange = { keyword ->
-                        searchText = keyword
-                    },
-                    label = { Text("搜索短信") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    trailingIcon = {
-                        if (searchText.isNotEmpty()) {
-                            IconButton(onClick = {
-                                searchText = ""
-                                viewModel.updateFilter(filterState.copy(keyword = ""))
-                            }) {
-                                Icon(Icons.Default.Clear, contentDescription = "清空")
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    singleLine = true
-                )
-
                 when (val state = uiState) {
                 is SmsUiState.Loading -> {
                     Box(
@@ -352,6 +336,30 @@ fun MainScreen(
                             contentPadding = PaddingValues(16.dp),
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
+                            // Search box as first item
+                            item(key = "search") {
+                                OutlinedTextField(
+                                    value = searchText,
+                                    onValueChange = { keyword ->
+                                        searchText = keyword
+                                    },
+                                    label = { Text("搜索短信") },
+                                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                                    trailingIcon = {
+                                        if (searchText.isNotEmpty()) {
+                                            IconButton(onClick = {
+                                                searchText = ""
+                                                viewModel.updateFilter(filterState.copy(keyword = ""))
+                                            }) {
+                                                Icon(Icons.Default.Clear, contentDescription = "清空")
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    singleLine = true
+                                )
+                            }
+
                             items(
                                 items = state.messages,
                                 key = { it.id }
