@@ -48,15 +48,20 @@ fun SmsListItem(
     var isExpanded by remember { mutableStateOf(false) }
     val maxLength = 100
 
+    // Use rememberUpdatedState to capture latest values in the lambda
+    val currentIsMultiSelectMode by rememberUpdatedState(isMultiSelectMode)
+    val currentOnItemClick by rememberUpdatedState(onItemClick)
+    val currentOnDeleteClick by rememberUpdatedState(onDeleteClick)
+
     val dismissState = rememberDismissState(
         confirmValueChange = { dismissValue ->
             if (dismissValue == DismissValue.DismissedToStart) {
-                if (isMultiSelectMode) {
+                if (currentIsMultiSelectMode) {
                     // In multi-select mode, select the item instead of deleting
-                    onItemClick()
+                    currentOnItemClick()
                     false // Don't dismiss
                 } else {
-                    onDeleteClick()
+                    currentOnDeleteClick()
                     false
                 }
             } else {
@@ -76,10 +81,10 @@ fun SmsListItem(
                         if (isMultiSelectMode) {
                             MaterialTheme.colorScheme.primary
                         } else {
-                            Color(0xFFF44336) // DeleteRed
+                            MaterialTheme.colorScheme.error
                         }
                     }
-                    else -> Color.LightGray
+                    else -> MaterialTheme.colorScheme.surfaceVariant
                 },
                 label = "swipe_color"
             )
@@ -102,15 +107,14 @@ fun SmsListItem(
             }
         },
         dismissContent = {
-            Card(
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .animateContentSize()
                     .combinedClickable(
                         onClick = onItemClick,
                         onLongClick = onLongClick
-                    ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                    )
             ) {
                 Row(
                     modifier = Modifier
