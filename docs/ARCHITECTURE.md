@@ -25,12 +25,12 @@ graph TB
     subgraph "Domain Layer (Use Cases)"
         GetSmsUseCase[GetSmsUseCase]
         FilterSmsUseCase[FilterSmsUseCase]
-        DeleteSmsUseCase[DeleteSmsUseCase]
         ExportSmsUseCase[ExportSmsUseCase]
         ImportSmsUseCase[ImportSmsUseCase]
     end
     
     subgraph "Data Layer"
+        SmsOperationManager[SmsOperationManager]
         SmsRepository[SmsRepository]
         FilterHistoryRepository[FilterHistoryRepository]
         SmsDataSource[SmsDataSource]
@@ -52,16 +52,16 @@ graph TB
     
     SmsViewModel --> GetSmsUseCase
     SmsViewModel --> FilterSmsUseCase
-    SmsViewModel --> DeleteSmsUseCase
+    SmsViewModel --> SmsOperationManager
     SmsViewModel --> ExportSmsUseCase
     SmsViewModel --> ImportSmsUseCase
     SmsViewModel --> FilterHistoryRepository
     
     GetSmsUseCase --> SmsRepository
     FilterSmsUseCase --> FilterState
-    DeleteSmsUseCase --> SmsRepository
+    SmsOperationManager --> SmsRepository
     ExportSmsUseCase --> SmsRepository
-    ImportSmsUseCase --> SmsRepository
+    ImportSmsUseCase --> SmsOperationManager
     
     SmsRepository --> SmsDataSource
     SmsDataSource --> ContentResolver
@@ -117,7 +117,6 @@ graph TB
 **用例**：
 - `GetSmsUseCase` - 获取短信（分页）
 - `FilterSmsUseCase` - 构建筛选状态，验证正则
-- `DeleteSmsUseCase` - 删除短信（按 ID 或筛选条件）
 - `ExportSmsUseCase` - 导出短信为 CSV
 - `ImportSmsUseCase` - 从 CSV 导入短信
 
@@ -131,6 +130,7 @@ graph TB
 **职责**：数据访问和存储
 
 **组件**：
+- `SmsOperationManager` - 统一的短信数据库操作管理器
 - `SmsRepository` - 短信仓库，封装数据源
 - `FilterHistoryRepository` - 筛选历史仓库（SharedPreferences）
 - `SmsDataSource` - 短信数据源，封装 ContentResolver
@@ -181,30 +181,30 @@ sequenceDiagram
 sequenceDiagram
     participant UI as MainScreen
     participant VM as SmsViewModel
-    participant DSM as DefaultSmsManager
-    participant UC as DeleteSmsUseCase
+    participant SOM as SmsOperationManager
     participant Repo as SmsRepository
     participant DS as SmsDataSource
     participant CR as ContentResolver
     
-    UI->>VM: deleteSelected()
-    VM->>DSM: isDefaultSmsApp()
-    DSM-->>VM: true/false
+    UI->>VM: requestDelete(messageId) / requestDeleteSelected()
+    VM->>SOM: needsDefaultSmsApp()
+    SOM-->>VM: true/false
     
     alt Not Default SMS App
         VM-->>UI: Show request dialog
-        UI->>DSM: requestDefaultSmsRole()
-        DSM-->>UI: Result
+        UI->>VM: requestDefaultSmsRole()
     end
     
-    VM->>UC: invoke(ids) or deleteByFilter(filterState)
-    UC->>Repo: deleteMessages(ids)
+    VM-->>UI: Show confirmation dialog
+    UI->>VM: confirmDelete()
+    VM->>SOM: deleteMessages(ids) / deleteMessagesByFilter(filterState)
+    SOM->>Repo: deleteMessages(ids)
     Repo->>DS: deleteMessages(ids)
     DS->>CR: delete(uri, selection)
     CR-->>DS: deletedCount
     DS-->>Repo: deletedCount
-    Repo-->>UC: deletedCount
-    UC-->>VM: deletedCount
+    Repo-->>SOM: deletedCount
+    SOM-->>VM: deletedCount
     
     VM-->>UI: OperationState.Success
 ```
@@ -218,6 +218,7 @@ sequenceDiagram
 
 **注入点**：
 - `SmsViewModel` - @HiltViewModel
+- `SmsOperationManager` - @Singleton
 - `SmsRepository` - @Singleton
 - `SmsDataSource` - @Singleton
 - `FilterHistoryRepository` - @Singleton
@@ -231,14 +232,15 @@ graph LR
     Context --> FilterHistoryRepository
     
     SmsDataSource --> SmsRepository
+    SmsRepository --> SmsOperationManager
     SmsRepository --> GetSmsUseCase
-    SmsRepository --> DeleteSmsUseCase
     SmsRepository --> ExportSmsUseCase
-    SmsRepository --> ImportSmsUseCase
+    
+    SmsOperationManager --> SmsViewModel
+    SmsOperationManager --> ImportSmsUseCase
     
     GetSmsUseCase --> SmsViewModel
     FilterSmsUseCase --> SmsViewModel
-    DeleteSmsUseCase --> SmsViewModel
     ExportSmsUseCase --> SmsViewModel
     ImportSmsUseCase --> SmsViewModel
     FilterHistoryRepository --> SmsViewModel

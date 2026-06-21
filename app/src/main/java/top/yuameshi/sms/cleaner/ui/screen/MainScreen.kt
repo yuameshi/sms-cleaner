@@ -52,14 +52,13 @@ fun MainScreen(
     val filterState by viewModel.filterState.collectAsStateWithLifecycle()
     val selectionState by viewModel.selectionState.collectAsStateWithLifecycle()
     val operationState by viewModel.operationState.collectAsStateWithLifecycle()
-    val isDefaultSmsApp by viewModel.isDefaultSmsApp.collectAsStateWithLifecycle()
     val filterHistory by viewModel.filterHistory.collectAsStateWithLifecycle()
     val previewMessages by viewModel.previewMessages.collectAsStateWithLifecycle()
+    val showDeleteConfirmDialog by viewModel.showDeleteConfirmDialog.collectAsStateWithLifecycle()
+    val showDefaultSmsDialog by viewModel.showDefaultSmsDialog.collectAsStateWithLifecycle()
 
-    var showDeleteDialog by remember { mutableStateOf(false) }
     var showExportDialog by remember { mutableStateOf(false) }
     var showImportDialog by remember { mutableStateOf(false) }
-    var showDefaultSmsDialog by remember { mutableStateOf(false) }
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -163,10 +162,8 @@ fun MainScreen(
                                 Icon(Icons.Default.GetApp, contentDescription = "导出")
                             }
                             IconButton(onClick = {
-                                if (isDefaultSmsApp) {
+                                if (viewModel.requestImport()) {
                                     showImportDialog = true
-                                } else {
-                                    showDefaultSmsDialog = true
                                 }
                             }) {
                                 Icon(Icons.Default.Publish, contentDescription = "导入")
@@ -190,13 +187,7 @@ fun MainScreen(
                         // Delete
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             IconButton(
-                                onClick = {
-                                    if (isDefaultSmsApp) {
-                                        showDeleteDialog = true
-                                    } else {
-                                        showDefaultSmsDialog = true
-                                    }
-                                },
+                                onClick = { viewModel.requestDeleteSelected() },
                                 enabled = hasSelection
                             ) {
                                 Icon(Icons.Default.Delete, contentDescription = "删除")
@@ -380,7 +371,7 @@ fun MainScreen(
                                         }
                                     },
                                     onDeleteClick = {
-                                        viewModel.deleteSingleMessage(message.id)
+                                        viewModel.requestDelete(message.id)
                                     }
                                 )
                             }
@@ -435,18 +426,15 @@ fun MainScreen(
     }
 
     // Delete confirmation dialog
-    if (showDeleteDialog) {
+    if (showDeleteConfirmDialog) {
         LaunchedEffect(Unit) {
             viewModel.loadPreviewMessages()
         }
         DeleteConfirmDialog(
-            count = selectionState.selectedCount,
+            count = viewModel.getDeleteCount(),
             previewMessages = previewMessages,
-            onConfirm = {
-                viewModel.deleteSelected()
-                showDeleteDialog = false
-            },
-            onDismiss = { showDeleteDialog = false }
+            onConfirm = { viewModel.confirmDelete() },
+            onDismiss = { viewModel.cancelDelete() }
         )
     }
 
@@ -478,12 +466,12 @@ fun MainScreen(
     // Default SMS app dialog
     if (showDefaultSmsDialog) {
         AlertDialog(
-            onDismissRequest = { showDefaultSmsDialog = false },
+            onDismissRequest = { viewModel.dismissDefaultSmsDialog() },
             title = { Text("需要设置默认短信App") },
-            text = { Text("为了删除短信，需要将本App设为默认短信App。操作完成后可随时恢复原来的短信App。") },
+            text = { Text("为了删除或导入短信，需要将本App设为默认短信App。操作完成后可随时恢复原来的短信App。") },
             confirmButton = {
                 TextButton(onClick = {
-                    showDefaultSmsDialog = false
+                    viewModel.dismissDefaultSmsDialog()
                     context.findActivity()?.let { activity ->
                         DefaultSmsManager.requestDefaultSmsRole(activity, defaultSmsLauncher)
                     }
@@ -492,7 +480,7 @@ fun MainScreen(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showDefaultSmsDialog = false }) {
+                TextButton(onClick = { viewModel.dismissDefaultSmsDialog() }) {
                     Text("取消")
                 }
             }

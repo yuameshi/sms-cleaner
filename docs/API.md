@@ -152,22 +152,6 @@ class FilterSmsUseCase @Inject constructor() {
 }
 ```
 
-### DeleteSmsUseCase
-
-删除短信用例。
-
-```kotlin
-class DeleteSmsUseCase @Inject constructor(
-    private val smsRepository: SmsRepository
-) {
-    // 按 ID 删除
-    suspend operator fun invoke(ids: List<Long>): Int
-
-    // 按筛选条件删除
-    suspend fun deleteByFilter(filterState: FilterState): Int
-}
-```
-
 ### ExportSmsUseCase
 
 导出短信用例。
@@ -194,7 +178,7 @@ class ExportSmsUseCase @Inject constructor(
 ```kotlin
 class ImportSmsUseCase @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val smsRepository: SmsRepository
+    private val smsOperationManager: SmsOperationManager
 ) {
     // 导入短信
     suspend operator fun invoke(
@@ -206,6 +190,42 @@ class ImportSmsUseCase @Inject constructor(
         val imported: Int,  // 导入数量
         val skipped: Int    // 跳过数量
     )
+}
+```
+
+## 管理器
+
+### SmsOperationManager
+
+统一的短信数据库操作管理器。
+
+```kotlin
+@Singleton
+class SmsOperationManager @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val smsRepository: SmsRepository
+) {
+    // 判断是否需要设置为默认短信App
+    fun needsDefaultSmsApp(): Boolean
+
+    // 按 ID 删除
+    suspend fun deleteMessages(ids: List<Long>): Int
+
+    // 按筛选条件删除
+    suspend fun deleteMessagesByFilter(filterState: FilterState): Int
+
+    // 插入短信
+    suspend fun insertMessage(
+        address: String,
+        body: String,
+        date: Long,
+        type: Int,
+        read: Boolean,
+        subId: Int
+    ): Uri?
+
+    // 检查重复
+    suspend fun checkDuplicate(address: String, body: String, date: Long): Boolean
 }
 ```
 

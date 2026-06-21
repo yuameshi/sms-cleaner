@@ -5,8 +5,8 @@ import android.net.Uri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import top.yuameshi.sms.cleaner.data.manager.SmsOperationManager
 import top.yuameshi.sms.cleaner.data.model.SmsMessage
-import top.yuameshi.sms.cleaner.data.repository.SmsRepository
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.text.SimpleDateFormat
@@ -15,7 +15,7 @@ import javax.inject.Inject
 
 class ImportSmsUseCase @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val smsRepository: SmsRepository
+    private val smsOperationManager: SmsOperationManager
 ) {
     suspend operator fun invoke(
         uri: Uri,
@@ -64,11 +64,11 @@ class ImportSmsUseCase @Inject constructor(
                             val read = readStatus == "已读"
 
                             // Check for duplicate
-                            val isDuplicate = smsRepository.checkDuplicate(address, body, date)
+                            val isDuplicate = smsOperationManager.checkDuplicate(address, body, date)
                             if (isDuplicate) {
                                 skipped++
                             } else {
-                                smsRepository.insertMessage(address, body, date, type, read, 0)
+                                smsOperationManager.insertMessage(address, body, date, type, read, 0)
                                 imported++
                             }
 
