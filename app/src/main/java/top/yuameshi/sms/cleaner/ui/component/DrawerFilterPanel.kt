@@ -13,6 +13,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import top.yuameshi.sms.cleaner.data.model.FilterState
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,6 +33,9 @@ fun DrawerFilterPanel(
     var regex by remember { mutableStateOf(filterState.regex) }
     var isRegexMode by remember { mutableStateOf(filterState.isRegexMode) }
     var regexError by remember { mutableStateOf<String?>(null) }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var customStartDate by remember { mutableStateOf(filterState.customStartDate) }
+    var customEndDate by remember { mutableStateOf(filterState.customEndDate) }
 
     Column(
         modifier = modifier
@@ -111,12 +118,75 @@ fun DrawerFilterPanel(
         ) {
             items(FilterState.DateRange.entries.toList()) { dateRange ->
                 FilterChip(
-                    selected = filterState.dateRange == dateRange,
+                    selected = if (dateRange == FilterState.DateRange.CUSTOM) {
+                        false // "自定义" chip is never selected
+                    } else {
+                        filterState.dateRange == dateRange
+                    },
                     onClick = {
-                        onFilterChange(filterState.copy(dateRange = dateRange))
+                        if (dateRange == FilterState.DateRange.CUSTOM) {
+                            showDatePicker = true
+                        } else {
+                            // Clear custom dates when a preset is selected
+                            customStartDate = null
+                            customEndDate = null
+                            onFilterChange(
+                                filterState.copy(
+                                    dateRange = dateRange,
+                                    customStartDate = null,
+                                    customEndDate = null
+                                )
+                            )
+                        }
                     },
                     label = { Text(getDateRangeName(dateRange)) }
                 )
+            }
+        }
+
+        // Custom date chip row
+        if (customStartDate != null && customEndDate != null) {
+            Spacer(modifier = Modifier.height(8.dp))
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                item {
+                    val startDate = Instant.ofEpochMilli(customStartDate!!)
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalDate()
+                    val endDate = Instant.ofEpochMilli(customEndDate!!)
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalDate()
+                    val formatter = DateTimeFormatter.ofPattern("yyyy年MM月dd日")
+                    val dateRangeText = "${startDate.format(formatter)} - ${endDate.format(formatter)}"
+                    FilterChip(
+                        selected = true,
+                        onClick = { showDatePicker = true },
+                        label = { Text(dateRangeText) },
+                        trailingIcon = {
+                            IconButton(
+                                onClick = {
+                                    customStartDate = null
+                                    customEndDate = null
+                                    onFilterChange(
+                                        filterState.copy(
+                                            dateRange = FilterState.DateRange.ALL,
+                                            customStartDate = null,
+                                            customEndDate = null
+                                        )
+                                    )
+                                },
+                                modifier = Modifier.size(18.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "清除自定义日期",
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    )
+                }
             }
         }
 
@@ -238,6 +308,8 @@ fun DrawerFilterPanel(
                     regex = ""
                     isRegexMode = false
                     regexError = null
+                    customStartDate = null
+                    customEndDate = null
                     onClearFilters()
                 }
             ) {
@@ -249,7 +321,9 @@ fun DrawerFilterPanel(
                         filterState.copy(
                             keyword = keyword,
                             regex = regex,
-                            isRegexMode = isRegexMode
+                            isRegexMode = isRegexMode,
+                            customStartDate = customStartDate,
+                            customEndDate = customEndDate
                         )
                     )
                     onApply()
@@ -257,6 +331,51 @@ fun DrawerFilterPanel(
             ) {
                 Text("应用")
             }
+        }
+    }
+
+    // Date Range Picker Dialog
+    if (showDatePicker) {
+        val dateRangePickerState = rememberDateRangePickerState(
+            initialSelectedStartDateMillis = customStartDate,
+            initialSelectedEndDateMillis = customEndDate
+        )
+
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val startDateMillis = dateRangePickerState.selectedStartDateMillis
+                        val endDateMillis = dateRangePickerState.selectedEndDateMillis
+                        if (startDateMillis != null && endDateMillis != null) {
+                            customStartDate = startDateMillis
+                            customEndDate = endDateMillis
+                            onFilterChange(
+                                filterState.copy(
+                                    dateRange = FilterState.DateRange.ALL,
+                                    customStartDate = startDateMillis,
+                                    customEndDate = endDateMillis
+                                )
+                            )
+                        }
+                        showDatePicker = false
+                    },
+                    enabled = dateRangePickerState.selectedEndDateMillis != null
+                ) {
+                    Text("确定")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) {
+                    Text("取消")
+                }
+            }
+        ) {
+            DateRangePicker(
+                state = dateRangePickerState,
+                modifier = Modifier.weight(1f)
+            )
         }
     }
 }
