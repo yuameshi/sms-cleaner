@@ -92,10 +92,7 @@ fun MainScreen(
                 DrawerFilterPanel(
                     filterState = filterState,
                     onFilterChange = { viewModel.updateFilter(it) },
-                    onClearFilters = { viewModel.clearFilters() },
-                    onApply = {
-                        scope.launch { drawerState.close() }
-                    }
+                    onClearFilters = { viewModel.clearFilters() }
                 )
             }
         },

@@ -24,7 +24,6 @@ fun DrawerFilterPanel(
     filterState: FilterState,
     onFilterChange: (FilterState) -> Unit,
     onClearFilters: () -> Unit,
-    onApply: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
@@ -38,11 +37,26 @@ fun DrawerFilterPanel(
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
-        // Title
-        Text(
-            text = "筛选",
-            style = MaterialTheme.typography.headlineMedium
-        )
+        // Title with Reset button
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "筛选",
+                style = MaterialTheme.typography.headlineMedium
+            )
+            TextButton(
+                onClick = {
+                    customStartDate = null
+                    customEndDate = null
+                    onClearFilters()
+                }
+            ) {
+                Text("重置")
+            }
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -203,42 +217,6 @@ fun DrawerFilterPanel(
                 )
             }
         }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Bottom buttons
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)
-        ) {
-            TextButton(
-                onClick = {
-                    customStartDate = null
-                    customEndDate = null
-                    onClearFilters()
-                }
-            ) {
-                Text("重置")
-            }
-            Button(
-                onClick = {
-                    onFilterChange(
-                        filterState.copy(
-                            dateRange = if (customStartDate != null && customEndDate != null) {
-                                FilterState.DateRange.CUSTOM
-                            } else {
-                                filterState.dateRange
-                            },
-                            customStartDate = customStartDate,
-                            customEndDate = customEndDate
-                        )
-                    )
-                    onApply()
-                }
-            ) {
-                Text("应用")
-            }
-        }
     }
 
     // Date Range Picker Dialog
@@ -258,6 +236,14 @@ fun DrawerFilterPanel(
                         if (startDateMillis != null && endDateMillis != null) {
                             customStartDate = startDateMillis
                             customEndDate = endDateMillis
+                            // 立即应用自定义日期筛选
+                            onFilterChange(
+                                filterState.copy(
+                                    dateRange = FilterState.DateRange.CUSTOM,
+                                    customStartDate = startDateMillis,
+                                    customEndDate = endDateMillis
+                                )
+                            )
                         }
                         showDatePicker = false
                     },
