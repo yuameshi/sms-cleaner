@@ -18,9 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
-import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -106,11 +104,6 @@ fun MainScreen(
             topBar = {
                 TopAppBar(
                     modifier = Modifier
-                        .border(
-                            width = 1.dp,
-                            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
-                            shape = RectangleShape
-                        )
                         .clickable {
                             scope.launch {
                                 listState.animateScrollToItem(0)
@@ -123,7 +116,9 @@ fun MainScreen(
                                     "已选择 ${selectionState.selectedCount} 条"
                                 } else {
                                     "SMS Cleaner"
-                                }
+                                },
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                             if (!selectionState.isMultiSelectMode) {
                                 when (val state = uiState) {
@@ -167,43 +162,55 @@ fun MainScreen(
                                     )
                                 }
                             }
-                            // 导出按钮
+                            // 更多选项菜单
+                            var menuExpanded by remember { mutableStateOf(false) }
                             TooltipBox(
                                 positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                                tooltip = { PlainTooltip { Text("导出短信") } },
+                                tooltip = { PlainTooltip { Text("更多选项") } },
                                 state = rememberTooltipState()
                             ) {
-                                IconButton(onClick = { showExportDialog = true }) {
-                                    Icon(Icons.Default.GetApp, contentDescription = "导出短信")
+                                IconButton(onClick = { menuExpanded = true }) {
+                                    Icon(Icons.Default.MoreVert, contentDescription = "更多选项")
                                 }
-                            }
-                            // 导入按钮
-                            TooltipBox(
-                                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                                tooltip = { PlainTooltip { Text("导入短信") } },
-                                state = rememberTooltipState()
-                            ) {
-                                IconButton(onClick = {
-                                    if (viewModel.requestImport()) {
-                                        showImportDialog = true
-                                    }
-                                }) {
-                                    Icon(Icons.Default.Publish, contentDescription = "导入短信")
-                                }
-                            }
-                            // 恢复默认短信App按钮（仅在当前是默认短信App时显示）
-                            if (isDefaultSmsApp) {
-                                TooltipBox(
-                                    positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                                    tooltip = { PlainTooltip { Text("恢复默认短信App") } },
-                                    state = rememberTooltipState()
+                                DropdownMenu(
+                                    expanded = menuExpanded,
+                                    onDismissRequest = { menuExpanded = false }
                                 ) {
-                                    IconButton(onClick = {
-                                        context.findActivity()?.let { activity ->
-                                            DefaultSmsManager.openDefaultAppsSettings(activity)
+                                    DropdownMenuItem(
+                                        text = { Text("导出短信") },
+                                        onClick = {
+                                            menuExpanded = false
+                                            showExportDialog = true
+                                        },
+                                        leadingIcon = {
+                                            Icon(Icons.Default.GetApp, contentDescription = null)
                                         }
-                                    }) {
-                                        Icon(Icons.Default.Settings, contentDescription = "恢复默认短信App")
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("导入短信") },
+                                        onClick = {
+                                            menuExpanded = false
+                                            if (viewModel.requestImport()) {
+                                                showImportDialog = true
+                                            }
+                                        },
+                                        leadingIcon = {
+                                            Icon(Icons.Default.Publish, contentDescription = null)
+                                        }
+                                    )
+                                    if (isDefaultSmsApp) {
+                                        DropdownMenuItem(
+                                            text = { Text("恢复默认短信App") },
+                                            onClick = {
+                                                menuExpanded = false
+                                                context.findActivity()?.let { activity ->
+                                                    DefaultSmsManager.openDefaultAppsSettings(activity)
+                                                }
+                                            },
+                                            leadingIcon = {
+                                                Icon(Icons.Default.Settings, contentDescription = null)
+                                            }
+                                        )
                                     }
                                 }
                             }
@@ -211,7 +218,7 @@ fun MainScreen(
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface,
-                        scrolledContainerColor = MaterialTheme.colorScheme.surface
+                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
                     )
                 )
             },
