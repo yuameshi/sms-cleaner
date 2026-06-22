@@ -20,6 +20,7 @@ class SmsDataSource @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     private val contentResolver: ContentResolver = context.contentResolver
+    private var cachedTotalCount: Int? = null
 
     suspend fun getSmsMessages(
         filterState: FilterState,
@@ -82,6 +83,10 @@ class SmsDataSource @Inject constructor(
     }
 
     suspend fun getTotalCount(filterState: FilterState): Int = withContext(Dispatchers.IO) {
+        if (!filterState.hasFilters()) {
+            cachedTotalCount?.let { return@withContext it }
+        }
+
         val (selection, selectionArgs) = buildSelection(filterState)
 
         val cursor = contentResolver.query(
@@ -92,9 +97,15 @@ class SmsDataSource @Inject constructor(
             null
         )
 
-        cursor?.use {
+        val count = cursor?.use {
             it.count
         } ?: 0
+
+        if (!filterState.hasFilters()) {
+            cachedTotalCount = count
+        }
+
+        count
     }
 
     suspend fun deleteMessages(ids: List<Long>): Int = withContext(Dispatchers.IO) {
@@ -110,16 +121,19 @@ class SmsDataSource @Inject constructor(
             )
             totalDeleted += deleted
         }
+        invalidateTotalCountCache()
         totalDeleted
     }
 
     suspend fun deleteMessagesByFilter(filterState: FilterState): Int = withContext(Dispatchers.IO) {
         val (selection, selectionArgs) = buildSelection(filterState)
-        contentResolver.delete(
+        val result = contentResolver.delete(
             Telephony.Sms.CONTENT_URI,
             selection,
             selectionArgs
         )
+        invalidateTotalCountCache()
+        result
     }
 
     suspend fun insertMessage(
@@ -139,7 +153,9 @@ class SmsDataSource @Inject constructor(
             put(Telephony.Sms.SUBSCRIPTION_ID, subId)
         }
 
-        contentResolver.insert(Telephony.Sms.CONTENT_URI, values)
+        val result = contentResolver.insert(Telephony.Sms.CONTENT_URI, values)
+        invalidateTotalCountCache()
+        result
     }
 
     suspend fun checkDuplicate(address: String, body: String, date: Long): Boolean = withContext(Dispatchers.IO) {
@@ -154,6 +170,10 @@ class SmsDataSource @Inject constructor(
         cursor?.use {
             it.count > 0
         } ?: false
+    }
+
+    fun invalidateTotalCountCache() {
+        cachedTotalCount = null
     }
 
     private fun buildSelection(filterState: FilterState): Pair<String?, Array<String>?> {

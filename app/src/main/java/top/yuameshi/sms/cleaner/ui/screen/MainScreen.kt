@@ -124,7 +124,9 @@ fun MainScreen(
                                 when (val state = uiState) {
                                     is SmsUiState.Success -> {
                                         Text(
-                                            text = if (filterState.hasFilters()) {
+                                            text = if (state.isLoading) {
+                                                "正在加载..."
+                                            } else if (filterState.hasFilters()) {
                                                 "共 ${state.totalCount} 条 | 筛选 ${state.filteredCount} 条"
                                             } else {
                                                 "共 ${state.totalCount} 条短信"
@@ -346,7 +348,14 @@ fun MainScreen(
                     }
                 }
                 is SmsUiState.Success -> {
-                    if (state.messages.isEmpty()) {
+                    if (state.isLoading) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+                    } else if (state.messages.isEmpty()) {
                         Box(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center

@@ -9,6 +9,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import top.yuameshi.sms.cleaner.data.manager.SmsOperationManager
 import top.yuameshi.sms.cleaner.data.model.FilterState
@@ -129,10 +130,14 @@ class SmsViewModel @Inject constructor(
                 currentPage = 0
                 allMessages.clear()
 
-                totalCount = getSmsUseCase.getTotalCount(FilterState())
-                filteredCount = getSmsUseCase.getTotalCount(_filterState.value)
+                // Parallel execution: filteredCount + messages at the same time
+                // totalCount uses SmsDataSource internal cache (instant on cache hit)
+                val filteredCountDeferred = async { getSmsUseCase.getTotalCount(_filterState.value) }
+                val messagesDeferred = async { getSmsUseCase(_filterState.value, currentPage) }
 
-                val messages = getSmsUseCase(_filterState.value, currentPage)
+                totalCount = getSmsUseCase.getTotalCount(FilterState())  // Cache hit, instant return
+                filteredCount = filteredCountDeferred.await()
+                val messages = messagesDeferred.await()
                 allMessages.addAll(messages)
 
                 _uiState.value = SmsUiState.Success(
