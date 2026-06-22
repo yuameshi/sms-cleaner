@@ -120,6 +120,8 @@ fun DrawerFilterPanel(
                 FilterChip(
                     selected = if (dateRange == FilterState.DateRange.CUSTOM) {
                         false // "自定义" chip is never selected
+                    } else if (customStartDate != null && customEndDate != null) {
+                        false // No preset chip selected when custom dates are set
                     } else {
                         filterState.dateRange == dateRange
                     },
@@ -322,6 +324,11 @@ fun DrawerFilterPanel(
                             keyword = keyword,
                             regex = regex,
                             isRegexMode = isRegexMode,
+                            dateRange = if (customStartDate != null && customEndDate != null) {
+                                FilterState.DateRange.CUSTOM
+                            } else {
+                                filterState.dateRange
+                            },
                             customStartDate = customStartDate,
                             customEndDate = customEndDate
                         )
@@ -351,13 +358,6 @@ fun DrawerFilterPanel(
                         if (startDateMillis != null && endDateMillis != null) {
                             customStartDate = startDateMillis
                             customEndDate = endDateMillis
-                            onFilterChange(
-                                filterState.copy(
-                                    dateRange = FilterState.DateRange.ALL,
-                                    customStartDate = startDateMillis,
-                                    customEndDate = endDateMillis
-                                )
-                            )
                         }
                         showDatePicker = false
                     },
