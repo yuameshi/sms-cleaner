@@ -155,6 +155,17 @@ fun SmsListItem(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            // Unread status indicator (before contact name)
+                            if (!message.read) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                            }
+
                             // Contact name or number
                             Text(
                                 text = message.contactName ?: message.address,
@@ -164,6 +175,22 @@ fun SmsListItem(
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f)
                             )
+
+                            // Type name (plain text, moved from footer chip)
+                            Text(
+                                text = SmsMessage.getTypeName(message.type),
+                                fontSize = 10.sp,
+                                color = getTypeColor(message.type)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+
+                            // SIM card indicator
+                            Text(
+                                text = "SIM ${message.subId}",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
 
                             // Date
                             Text(
@@ -210,47 +237,6 @@ fun SmsListItem(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        // Footer row
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            // Type badge
-                            Surface(
-                                shape = MaterialTheme.shapes.small,
-                                color = getTypeColor(message.type),
-                                modifier = Modifier.padding(end = 8.dp)
-                            ) {
-                                Text(
-                                    text = SmsMessage.getTypeName(message.type),
-                                    fontSize = 10.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                )
-                            }
-
-                            // SIM card
-                            Text(
-                                text = "SIM ${message.subId}",
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-
-                            // Read status indicator
-                            if (!message.read) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary)
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.weight(1f))
-                        }
                     }
                 }
             }
@@ -288,11 +274,13 @@ private fun formatDate(timestamp: Long): String {
 private fun getTypeColor(type: Int): Color {
     val colorScheme = MaterialTheme.colorScheme
     return when (type) {
-        SmsMessage.TYPE_INBOX -> colorScheme.tertiaryContainer
-        SmsMessage.TYPE_SENT -> colorScheme.primaryContainer
-        SmsMessage.TYPE_DRAFT -> colorScheme.secondaryContainer
-        SmsMessage.TYPE_OUTBOX -> colorScheme.surfaceVariant
-        else -> colorScheme.surfaceVariant
+        SmsMessage.TYPE_INBOX -> colorScheme.tertiary        // 收件箱
+        SmsMessage.TYPE_SENT -> colorScheme.primary           // 已发送
+        SmsMessage.TYPE_DRAFT -> colorScheme.secondary        // 草稿
+        SmsMessage.TYPE_OUTBOX -> colorScheme.error           // 发件箱
+        SmsMessage.TYPE_FAILED -> colorScheme.error           // 发送失败
+        SmsMessage.TYPE_QUEUED -> colorScheme.tertiary        // 待发送
+        else -> colorScheme.onSurfaceVariant
     }
 }
 
