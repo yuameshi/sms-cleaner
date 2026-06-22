@@ -22,17 +22,11 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun DrawerFilterPanel(
     filterState: FilterState,
-    filterHistory: List<String>,
     onFilterChange: (FilterState) -> Unit,
     onClearFilters: () -> Unit,
-    onClearHistory: () -> Unit,
     onApply: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var keyword by remember { mutableStateOf(filterState.keyword) }
-    var regex by remember { mutableStateOf(filterState.regex) }
-    var isRegexMode by remember { mutableStateOf(filterState.isRegexMode) }
-    var regexError by remember { mutableStateOf<String?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
     var customStartDate by remember { mutableStateOf(filterState.customStartDate) }
     var customEndDate by remember { mutableStateOf(filterState.customEndDate) }
@@ -48,64 +42,6 @@ fun DrawerFilterPanel(
         Text(
             text = "筛选",
             style = MaterialTheme.typography.headlineMedium
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Search bar
-        OutlinedTextField(
-            value = if (isRegexMode) regex else keyword,
-            onValueChange = { value ->
-                if (isRegexMode) {
-                    regex = value
-                    regexError = validateRegex(value)
-                } else {
-                    keyword = value
-                }
-            },
-            label = { Text(if (isRegexMode) "正则表达式" else "关键词/号码") },
-            leadingIcon = {
-                Icon(
-                    imageVector = if (isRegexMode) Icons.Default.Code else Icons.Default.Search,
-                    contentDescription = null
-                )
-            },
-            trailingIcon = {
-                Row {
-                    // Regex toggle
-                    IconButton(onClick = {
-                        isRegexMode = !isRegexMode
-                        if (isRegexMode) {
-                            regex = keyword
-                        } else {
-                            keyword = regex
-                        }
-                    }) {
-                        Icon(
-                            imageVector = Icons.Default.Code,
-                            contentDescription = "正则模式",
-                            tint = if (isRegexMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-
-                    // Clear button
-                    if (keyword.isNotEmpty() || regex.isNotEmpty()) {
-                        IconButton(onClick = {
-                            keyword = ""
-                            regex = ""
-                        }) {
-                            Icon(
-                                imageVector = Icons.Default.Clear,
-                                contentDescription = "清除"
-                            )
-                        }
-                    }
-                }
-            },
-            isError = regexError != null,
-            supportingText = regexError?.let { { Text(it) } },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -268,35 +204,6 @@ fun DrawerFilterPanel(
             }
         }
 
-        // Filter history section
-        if (filterHistory.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("最近使用", style = MaterialTheme.typography.titleSmall)
-                TextButton(onClick = onClearHistory) {
-                    Text("清除全部")
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(filterHistory) { history ->
-                    SuggestionChip(
-                        onClick = {
-                            keyword = history
-                            onFilterChange(filterState.copy(keyword = history))
-                        },
-                        label = { Text(history) }
-                    )
-                }
-            }
-        }
-
         Spacer(modifier = Modifier.height(24.dp))
 
         // Bottom buttons
@@ -306,10 +213,6 @@ fun DrawerFilterPanel(
         ) {
             TextButton(
                 onClick = {
-                    keyword = ""
-                    regex = ""
-                    isRegexMode = false
-                    regexError = null
                     customStartDate = null
                     customEndDate = null
                     onClearFilters()
@@ -321,9 +224,6 @@ fun DrawerFilterPanel(
                 onClick = {
                     onFilterChange(
                         filterState.copy(
-                            keyword = keyword,
-                            regex = regex,
-                            isRegexMode = isRegexMode,
                             dateRange = if (customStartDate != null && customEndDate != null) {
                                 FilterState.DateRange.CUSTOM
                             } else {
@@ -377,16 +277,6 @@ fun DrawerFilterPanel(
                 modifier = Modifier.weight(1f)
             )
         }
-    }
-}
-
-private fun validateRegex(regex: String): String? {
-    if (regex.isEmpty()) return null
-    return try {
-        Regex(regex)
-        null
-    } catch (e: Exception) {
-        "正则表达式格式不正确"
     }
 }
 

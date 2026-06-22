@@ -170,16 +170,6 @@ class SmsDataSource @Inject constructor(
             args.add("%${filterState.number}%")
         }
 
-        if (filterState.regex.isNotEmpty()) {
-            try {
-                val regex = Regex(filterState.regex)
-                // Note: SQLite doesn't support regex natively, we'll filter in memory
-                // This is handled in the repository layer
-            } catch (e: Exception) {
-                // Invalid regex, ignore
-            }
-        }
-
         when (filterState.dateRange) {
             FilterState.DateRange.TODAY -> {
                 val todayStart = getTodayStart()

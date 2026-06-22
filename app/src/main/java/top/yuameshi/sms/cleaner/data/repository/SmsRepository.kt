@@ -16,63 +16,11 @@ class SmsRepository @Inject constructor(
         page: Int,
         pageSize: Int = 50
     ): List<SmsMessage> {
-        // If regex is active, we need to fetch all messages and filter in memory
-        // because SQL doesn't support regex natively
-        return if (filterState.regex.isNotEmpty()) {
-            try {
-                val regex = Regex(filterState.regex)
-                // Get all messages matching the filter (without regex)
-                val allMessages = mutableListOf<SmsMessage>()
-                var currentPage = 0
-                val fetchPageSize = 100
-                while (true) {
-                    val messages = smsDataSource.getSmsMessages(filterState.copy(regex = ""), currentPage, fetchPageSize)
-                    if (messages.isEmpty()) break
-                    allMessages.addAll(messages)
-                    currentPage++
-                }
-                // Filter by regex in memory and apply pagination
-                val filteredMessages = allMessages.filter { regex.containsMatchIn(it.body) }
-                val startIndex = page * pageSize
-                val endIndex = minOf(startIndex + pageSize, filteredMessages.size)
-                if (startIndex < filteredMessages.size) {
-                    filteredMessages.subList(startIndex, endIndex)
-                } else {
-                    emptyList()
-                }
-            } catch (e: Exception) {
-                // Fallback to non-regex query
-                smsDataSource.getSmsMessages(filterState.copy(regex = ""), page, pageSize)
-            }
-        } else {
-            smsDataSource.getSmsMessages(filterState, page, pageSize)
-        }
+        return smsDataSource.getSmsMessages(filterState, page, pageSize)
     }
 
     suspend fun getTotalCount(filterState: FilterState): Int {
-        // If regex is active, we need to count all matching messages in memory
-        return if (filterState.regex.isNotEmpty()) {
-            try {
-                val regex = Regex(filterState.regex)
-                // Get all messages matching the filter (without regex)
-                val allMessages = mutableListOf<SmsMessage>()
-                var page = 0
-                val pageSize = 100
-                while (true) {
-                    val messages = smsDataSource.getSmsMessages(filterState.copy(regex = ""), page, pageSize)
-                    if (messages.isEmpty()) break
-                    allMessages.addAll(messages)
-                    page++
-                }
-                // Count messages matching regex
-                allMessages.count { regex.containsMatchIn(it.body) }
-            } catch (e: Exception) {
-                // Fallback to non-regex count
-                smsDataSource.getTotalCount(filterState.copy(regex = ""))
-            }
-        } else {
-            smsDataSource.getTotalCount(filterState)
-        }
+        return smsDataSource.getTotalCount(filterState)
     }
 
     suspend fun deleteMessages(ids: List<Long>): Int {
@@ -80,34 +28,7 @@ class SmsRepository @Inject constructor(
     }
 
     suspend fun deleteMessagesByFilter(filterState: FilterState): Int {
-        // If regex filter is active, we need to get matching messages first
-        // then delete by IDs, since SQL doesn't support regex natively
-        return if (filterState.regex.isNotEmpty()) {
-            try {
-                val regex = Regex(filterState.regex)
-                // Get all messages matching the filter (without regex)
-                val allMessages = mutableListOf<SmsMessage>()
-                var page = 0
-                val pageSize = 100
-                while (true) {
-                    val messages = smsDataSource.getSmsMessages(filterState.copy(regex = ""), page, pageSize)
-                    if (messages.isEmpty()) break
-                    allMessages.addAll(messages)
-                    page++
-                }
-                // Filter by regex in memory
-                val matchingIds = allMessages.filter { regex.containsMatchIn(it.body) }.map { it.id }
-                if (matchingIds.isNotEmpty()) {
-                    smsDataSource.deleteMessages(matchingIds)
-                } else {
-                    0
-                }
-            } catch (e: Exception) {
-                0
-            }
-        } else {
-            smsDataSource.deleteMessagesByFilter(filterState)
-        }
+        return smsDataSource.deleteMessagesByFilter(filterState)
     }
 
     suspend fun insertMessage(

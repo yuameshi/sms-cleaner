@@ -53,7 +53,6 @@ fun MainScreen(
     val selectionState by viewModel.selectionState.collectAsStateWithLifecycle()
     val operationState by viewModel.operationState.collectAsStateWithLifecycle()
     val isDefaultSmsApp by viewModel.isDefaultSmsApp.collectAsStateWithLifecycle()
-    val filterHistory by viewModel.filterHistory.collectAsStateWithLifecycle()
     val previewMessages by viewModel.previewMessages.collectAsStateWithLifecycle()
     val showDeleteConfirmDialog by viewModel.showDeleteConfirmDialog.collectAsStateWithLifecycle()
     val showDefaultSmsDialog by viewModel.showDefaultSmsDialog.collectAsStateWithLifecycle()
@@ -92,10 +91,8 @@ fun MainScreen(
             ) {
                 DrawerFilterPanel(
                     filterState = filterState,
-                    filterHistory = filterHistory,
                     onFilterChange = { viewModel.updateFilter(it) },
                     onClearFilters = { viewModel.clearFilters() },
-                    onClearHistory = { viewModel.clearFilterHistory() },
                     onApply = {
                         scope.launch { drawerState.close() }
                     }

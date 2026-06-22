@@ -7,8 +7,6 @@ class FilterSmsUseCase @Inject constructor() {
     fun buildFilterState(
         keyword: String = "",
         number: String = "",
-        regex: String = "",
-        isRegexMode: Boolean = false,
         dateRange: FilterState.DateRange = FilterState.DateRange.ALL,
         customStartDate: Long? = null,
         customEndDate: Long? = null,
@@ -22,8 +20,6 @@ class FilterSmsUseCase @Inject constructor() {
         return FilterState(
             keyword = keyword,
             number = number,
-            regex = regex,
-            isRegexMode = isRegexMode,
             dateRange = dateRange,
             customStartDate = customStartDate,
             customEndDate = customEndDate,
@@ -34,16 +30,6 @@ class FilterSmsUseCase @Inject constructor() {
             contactId = contactId,
             contactName = contactName
         )
-    }
-
-    fun validateRegex(regex: String): Boolean {
-        if (regex.isEmpty()) return true
-        return try {
-            Regex(regex)
-            true
-        } catch (e: Exception) {
-            false
-        }
     }
 
     fun getDateRangeMillis(dateRange: FilterState.DateRange): Pair<Long, Long>? {
