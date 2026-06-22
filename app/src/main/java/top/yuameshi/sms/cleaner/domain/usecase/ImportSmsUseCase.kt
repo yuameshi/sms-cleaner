@@ -77,6 +77,9 @@ class ImportSmsUseCase @Inject constructor(
                             skipped++
                         }
                     }
+                } catch (e: IllegalStateException) {
+                    // 不是默认短信App，直接抛出异常让调用者处理
+                    throw e
                 } catch (e: Exception) {
                     // Skip invalid lines
                     skipped++

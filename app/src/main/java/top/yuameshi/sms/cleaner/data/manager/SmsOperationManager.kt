@@ -28,11 +28,24 @@ class SmsOperationManager @Inject constructor(
     }
 
     /**
+     * 检查是否为默认短信App，如果不是则抛出异常
+     * 用于在实际执行写入操作前进行检查
+     * @throws IllegalStateException 如果不是默认短信App
+     */
+    fun checkDefaultSmsAppOrThrow() {
+        if (needsDefaultSmsApp()) {
+            throw IllegalStateException("需要设置为默认短信App才能执行此操作")
+        }
+    }
+
+    /**
      * 删除指定ID的短信
      * @param ids 要删除的短信ID列表
      * @return 实际删除的短信数量
+     * @throws IllegalStateException 如果不是默认短信App
      */
     suspend fun deleteMessages(ids: List<Long>): Int {
+        checkDefaultSmsAppOrThrow()
         return smsRepository.deleteMessages(ids)
     }
 
@@ -40,8 +53,10 @@ class SmsOperationManager @Inject constructor(
      * 根据筛选条件删除短信
      * @param filterState 筛选条件
      * @return 实际删除的短信数量
+     * @throws IllegalStateException 如果不是默认短信App
      */
     suspend fun deleteMessagesByFilter(filterState: FilterState): Int {
+        checkDefaultSmsAppOrThrow()
         return smsRepository.deleteMessagesByFilter(filterState)
     }
 
@@ -54,6 +69,7 @@ class SmsOperationManager @Inject constructor(
      * @param read 是否已读
      * @param subId SIM卡ID
      * @return 插入的URI，失败返回null
+     * @throws IllegalStateException 如果不是默认短信App
      */
     suspend fun insertMessage(
         address: String,
@@ -63,6 +79,7 @@ class SmsOperationManager @Inject constructor(
         read: Boolean,
         subId: Int
     ): Uri? {
+        checkDefaultSmsAppOrThrow()
         return smsRepository.insertMessage(address, body, date, type, read, subId)
     }
 

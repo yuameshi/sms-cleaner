@@ -263,6 +263,12 @@ class SmsViewModel @Inject constructor(
                 _selectionState.value = SelectionState()
                 pendingDeleteMessageId = null
                 loadMessages()
+            } catch (e: IllegalStateException) {
+                // 不是默认短信App，显示设置对话框
+                _operationState.value = OperationState.Idle
+                _showDefaultSmsDialog.value = true
+                _isDefaultSmsApp.value = false
+                pendingDeleteMessageId = null
             } catch (e: Exception) {
                 _operationState.value = OperationState.Error(e.message ?: "删除失败")
                 pendingDeleteMessageId = null
@@ -349,9 +355,21 @@ class SmsViewModel @Inject constructor(
                         loadMessages()
                     },
                     onFailure = { e ->
-                        _operationState.value = OperationState.Error(e.message ?: "导入失败")
+                        if (e is IllegalStateException) {
+                            // 不是默认短信App，显示设置对话框
+                            _operationState.value = OperationState.Idle
+                            _showDefaultSmsDialog.value = true
+                            _isDefaultSmsApp.value = false
+                        } else {
+                            _operationState.value = OperationState.Error(e.message ?: "导入失败")
+                        }
                     }
                 )
+            } catch (e: IllegalStateException) {
+                // 不是默认短信App，显示设置对话框
+                _operationState.value = OperationState.Idle
+                _showDefaultSmsDialog.value = true
+                _isDefaultSmsApp.value = false
             } catch (e: Exception) {
                 _operationState.value = OperationState.Error(e.message ?: "导入失败")
             }
