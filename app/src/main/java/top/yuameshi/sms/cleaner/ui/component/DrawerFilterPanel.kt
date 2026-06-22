@@ -260,7 +260,54 @@ fun DrawerFilterPanel(
         ) {
             DateRangePicker(
                 state = dateRangePickerState,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.heightIn(max = 420.dp),
+                title = {
+                    // Custom title with consistent padding
+                    Text(
+                        text = "选择日期",
+                        modifier = Modifier.padding(start = 24.dp, top = 16.dp, end = 12.dp, bottom = 0.dp),
+                        style = MaterialTheme.typography.bodyLarge,
+                        maxLines = 1
+                    )
+                },
+                headline = {
+                    // Custom headline with shorter date format
+                    val startDate = dateRangePickerState.selectedStartDateMillis
+                    val endDate = dateRangePickerState.selectedEndDateMillis
+                    val formatter = DateTimeFormatter.ofPattern("M月d日")
+                    
+                    val headlineText = when {
+                        startDate != null && endDate != null -> {
+                            val start = Instant.ofEpochMilli(startDate)
+                                .atZone(ZoneId.systemDefault())
+                                .toLocalDate()
+                            val end = Instant.ofEpochMilli(endDate)
+                                .atZone(ZoneId.systemDefault())
+                                .toLocalDate()
+                            "${start.format(formatter)} - ${end.format(formatter)}"
+                        }
+                        startDate != null -> {
+                            val start = Instant.ofEpochMilli(startDate)
+                                .atZone(ZoneId.systemDefault())
+                                .toLocalDate()
+                            start.format(formatter)
+                        }
+                        endDate != null -> {
+                            val end = Instant.ofEpochMilli(endDate)
+                                .atZone(ZoneId.systemDefault())
+                                .toLocalDate()
+                            end.format(formatter)
+                        }
+                        else -> "选择日期范围"
+                    }
+                    
+                    Text(
+                        text = headlineText,
+                        modifier = Modifier.padding(start = 24.dp, top = 8.dp, end = 12.dp, bottom = 12.dp),
+                        style = MaterialTheme.typography.headlineSmall,
+                        maxLines = 1
+                    )
+                }
             )
         }
     }
