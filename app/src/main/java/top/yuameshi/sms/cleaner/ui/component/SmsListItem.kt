@@ -106,14 +106,22 @@ fun SmsListItem(
                     .fillMaxWidth()
                     .animateContentSize()
                     .combinedClickable(
-                        onClick = onItemClick,
+                        onClick = {
+                            if (currentIsMultiSelectMode) {
+                                // In multi-select mode, call the original onItemClick
+                                onItemClick()
+                            } else {
+                                // In normal mode, toggle expand/collapse
+                                isExpanded = !isExpanded
+                            }
+                        },
                         onLongClick = onLongClick
                     )
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(12.dp),
+                        .padding(horizontal = 24.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.Top
                 ) {
                     // Selection checkbox or avatar
@@ -213,28 +221,16 @@ fun SmsListItem(
                             Text(
                                 text = highlightKeyword(bodyText, keyword),
                                 fontSize = 14.sp,
-                                maxLines = if (isExpanded) Int.MAX_VALUE else 3,
+                                maxLines = if (isExpanded) Int.MAX_VALUE else 2,
                                 overflow = TextOverflow.Ellipsis
                             )
                         } else {
                             Text(
                                 text = bodyText,
                                 fontSize = 14.sp,
-                                maxLines = if (isExpanded) Int.MAX_VALUE else 3,
+                                maxLines = if (isExpanded) Int.MAX_VALUE else 2,
                                 overflow = TextOverflow.Ellipsis
                             )
-                        }
-
-                        if (message.body.length > maxLength) {
-                            TextButton(
-                                onClick = { isExpanded = !isExpanded },
-                                modifier = Modifier.padding(0.dp)
-                            ) {
-                                Text(
-                                    text = if (isExpanded) "收起" else "展开",
-                                    fontSize = 12.sp
-                                )
-                            }
                         }
 
                     }

@@ -369,32 +369,33 @@ fun MainScreen(
                     } else {
                         LazyColumn(
                             state = listState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                            modifier = Modifier.fillMaxSize()
                         ) {
                             // Search box as first item
                             item(key = "search") {
-                                OutlinedTextField(
-                                    value = searchText,
-                                    onValueChange = { keyword ->
-                                        searchText = keyword
-                                    },
-                                    label = { Text("搜索短信") },
-                                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                                    trailingIcon = {
-                                        if (searchText.isNotEmpty()) {
-                                            IconButton(onClick = {
-                                                searchText = ""
-                                                viewModel.updateFilter(filterState.copy(keyword = ""))
-                                            }) {
-                                                Icon(Icons.Default.Clear, contentDescription = "清空")
+                                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                                    OutlinedTextField(
+                                        value = searchText,
+                                        onValueChange = { keyword ->
+                                            searchText = keyword
+                                        },
+                                        label = { Text("搜索短信") },
+                                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                                        trailingIcon = {
+                                            if (searchText.isNotEmpty()) {
+                                                IconButton(onClick = {
+                                                    searchText = ""
+                                                    viewModel.updateFilter(filterState.copy(keyword = ""))
+                                                }) {
+                                                    Icon(Icons.Default.Clear, contentDescription = "清空")
+                                                }
                                             }
-                                        }
-                                    },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    singleLine = true
-                                )
+                                        },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        singleLine = true
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                }
                             }
 
                             items(
