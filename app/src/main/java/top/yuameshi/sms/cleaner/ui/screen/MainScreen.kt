@@ -52,6 +52,7 @@ fun MainScreen(
     val filterState by viewModel.filterState.collectAsStateWithLifecycle()
     val selectionState by viewModel.selectionState.collectAsStateWithLifecycle()
     val operationState by viewModel.operationState.collectAsStateWithLifecycle()
+    val isDefaultSmsApp by viewModel.isDefaultSmsApp.collectAsStateWithLifecycle()
     val filterHistory by viewModel.filterHistory.collectAsStateWithLifecycle()
     val previewMessages by viewModel.previewMessages.collectAsStateWithLifecycle()
     val showDeleteConfirmDialog by viewModel.showDeleteConfirmDialog.collectAsStateWithLifecycle()
@@ -151,22 +152,59 @@ fun MainScreen(
                     },
                     actions = {
                         if (!selectionState.isMultiSelectMode) {
-                            IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                Icon(
-                                    imageVector = Icons.Default.FilterList,
-                                    contentDescription = "筛选",
-                                    tint = if (filterState.hasFilters()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                            IconButton(onClick = { showExportDialog = true }) {
-                                Icon(Icons.Default.GetApp, contentDescription = "导出")
-                            }
-                            IconButton(onClick = {
-                                if (viewModel.requestImport()) {
-                                    showImportDialog = true
+                            // 筛选按钮
+                            TooltipBox(
+                                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                                tooltip = { PlainTooltip { Text("筛选短信") } },
+                                state = rememberTooltipState()
+                            ) {
+                                IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                    Icon(
+                                        imageVector = Icons.Default.FilterList,
+                                        contentDescription = "筛选短信",
+                                        tint = if (filterState.hasFilters()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                    )
                                 }
-                            }) {
-                                Icon(Icons.Default.Publish, contentDescription = "导入")
+                            }
+                            // 导出按钮
+                            TooltipBox(
+                                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                                tooltip = { PlainTooltip { Text("导出短信") } },
+                                state = rememberTooltipState()
+                            ) {
+                                IconButton(onClick = { showExportDialog = true }) {
+                                    Icon(Icons.Default.GetApp, contentDescription = "导出短信")
+                                }
+                            }
+                            // 导入按钮
+                            TooltipBox(
+                                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                                tooltip = { PlainTooltip { Text("导入短信") } },
+                                state = rememberTooltipState()
+                            ) {
+                                IconButton(onClick = {
+                                    if (viewModel.requestImport()) {
+                                        showImportDialog = true
+                                    }
+                                }) {
+                                    Icon(Icons.Default.Publish, contentDescription = "导入短信")
+                                }
+                            }
+                            // 恢复默认短信App按钮（仅在当前是默认短信App时显示）
+                            if (isDefaultSmsApp) {
+                                TooltipBox(
+                                    positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                                    tooltip = { PlainTooltip { Text("恢复默认短信App") } },
+                                    state = rememberTooltipState()
+                                ) {
+                                    IconButton(onClick = {
+                                        context.findActivity()?.let { activity ->
+                                            DefaultSmsManager.openDefaultAppsSettings(activity)
+                                        }
+                                    }) {
+                                        Icon(Icons.Default.Settings, contentDescription = "恢复默认短信App")
+                                    }
+                                }
                             }
                         }
                     },

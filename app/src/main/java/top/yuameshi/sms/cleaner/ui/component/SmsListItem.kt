@@ -47,9 +47,9 @@ fun SmsListItem(
     val currentOnItemClick by rememberUpdatedState(onItemClick)
     val currentOnDeleteClick by rememberUpdatedState(onDeleteClick)
 
-    val dismissState = rememberDismissState(
+    val dismissState = rememberSwipeToDismissBoxState(
         confirmValueChange = { dismissValue ->
-            if (dismissValue == DismissValue.DismissedToStart) {
+            if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
                 if (currentIsMultiSelectMode) {
                     // In multi-select mode, select the item instead of deleting
                     currentOnItemClick()
@@ -64,14 +64,14 @@ fun SmsListItem(
         }
     )
 
-    SwipeToDismiss(
+    SwipeToDismissBox(
         state = dismissState,
         modifier = modifier,
-        directions = setOf(DismissDirection.EndToStart),
-        background = {
+        enableDismissFromStartToEnd = false,
+        backgroundContent = {
             val color by animateColorAsState(
                 when (dismissState.targetValue) {
-                    DismissValue.DismissedToStart -> {
+                    SwipeToDismissBoxValue.EndToStart -> {
                         if (isMultiSelectMode) {
                             MaterialTheme.colorScheme.primary
                         } else {
@@ -100,7 +100,7 @@ fun SmsListItem(
                 )
             }
         },
-        dismissContent = {
+        content = {
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
