@@ -195,19 +195,27 @@ class SmsDataSource @Inject constructor(
                 val todayStart = getTodayStart()
                 selections.add("${Telephony.Sms.DATE} >= ?")
                 args.add(todayStart.toString())
+                // Add upper bound for consistency (end of today)
+                val calendar = java.util.Calendar.getInstance()
+                calendar.set(java.util.Calendar.HOUR_OF_DAY, 23)
+                calendar.set(java.util.Calendar.MINUTE, 59)
+                calendar.set(java.util.Calendar.SECOND, 59)
+                calendar.set(java.util.Calendar.MILLISECOND, 999)
+                selections.add("${Telephony.Sms.DATE} <= ?")
+                args.add(calendar.timeInMillis.toString())
             }
             FilterState.DateRange.LAST_7_DAYS -> {
-                val sevenDaysAgo = System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000
+                val sevenDaysAgo = System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000
                 selections.add("${Telephony.Sms.DATE} >= ?")
                 args.add(sevenDaysAgo.toString())
             }
             FilterState.DateRange.LAST_30_DAYS -> {
-                val thirtyDaysAgo = System.currentTimeMillis() - 30 * 24 * 60 * 60 * 1000
+                val thirtyDaysAgo = System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000
                 selections.add("${Telephony.Sms.DATE} >= ?")
                 args.add(thirtyDaysAgo.toString())
             }
             FilterState.DateRange.LAST_90_DAYS -> {
-                val ninetyDaysAgo = System.currentTimeMillis() - 90 * 24 * 60 * 60 * 1000
+                val ninetyDaysAgo = System.currentTimeMillis() - 90L * 24 * 60 * 60 * 1000
                 selections.add("${Telephony.Sms.DATE} >= ?")
                 args.add(ninetyDaysAgo.toString())
             }
@@ -217,8 +225,16 @@ class SmsDataSource @Inject constructor(
                     args.add(it.toString())
                 }
                 filterState.customEndDate?.let {
+                    // Adjust endDate to end of day (23:59:59.999) to include all messages on that day
+                    val calendar = java.util.Calendar.getInstance()
+                    calendar.timeInMillis = it
+                    calendar.set(java.util.Calendar.HOUR_OF_DAY, 23)
+                    calendar.set(java.util.Calendar.MINUTE, 59)
+                    calendar.set(java.util.Calendar.SECOND, 59)
+                    calendar.set(java.util.Calendar.MILLISECOND, 999)
+                    val endOfDay = calendar.timeInMillis
                     selections.add("${Telephony.Sms.DATE} <= ?")
-                    args.add(it.toString())
+                    args.add(endOfDay.toString())
                 }
             }
             FilterState.DateRange.ALL -> {}
