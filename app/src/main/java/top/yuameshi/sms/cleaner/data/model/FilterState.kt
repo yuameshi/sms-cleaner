@@ -9,7 +9,7 @@ data class FilterState(
     val readStatus: ReadStatus = ReadStatus.ALL,
     val lockStatus: LockStatus = LockStatus.ALL,
     val messageType: MessageType = MessageType.ALL,
-    val simId: SimId = SimId.ALL,
+    val simSubscriptionId: Int? = null,
     val contactId: Long? = null
 ) {
     enum class DateRange {
@@ -28,10 +28,6 @@ data class FilterState(
         ALL, INBOX, SENT, DRAFT, OUTBOX
     }
 
-    enum class SimId {
-        ALL, SIM1, SIM2
-    }
-
     fun hasFilters(): Boolean {
         return keyword.isNotEmpty() ||
                 number.isNotEmpty() ||
@@ -39,7 +35,7 @@ data class FilterState(
                 readStatus != ReadStatus.ALL ||
                 lockStatus != LockStatus.ALL ||
                 messageType != MessageType.ALL ||
-                simId != SimId.ALL ||
+                simSubscriptionId != null ||
                 contactId != null
     }
 }

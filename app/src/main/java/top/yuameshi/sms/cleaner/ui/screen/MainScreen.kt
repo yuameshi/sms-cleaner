@@ -27,6 +27,7 @@ import top.yuameshi.sms.cleaner.ui.component.DrawerFilterPanel
 import top.yuameshi.sms.cleaner.ui.component.ExportDialog
 import top.yuameshi.sms.cleaner.ui.component.ImportDialog
 import top.yuameshi.sms.cleaner.ui.component.SmsListItem
+import top.yuameshi.sms.cleaner.data.model.SimCardInfo
 import top.yuameshi.sms.cleaner.util.DefaultSmsManager
 import kotlinx.coroutines.launch
 
@@ -52,6 +53,7 @@ fun MainScreen(
     val operationState by viewModel.operationState.collectAsStateWithLifecycle()
     val isDefaultSmsApp by viewModel.isDefaultSmsApp.collectAsStateWithLifecycle()
     val previewMessages by viewModel.previewMessages.collectAsStateWithLifecycle()
+    val simCards by viewModel.simCards.collectAsStateWithLifecycle()
     val showDeleteConfirmDialog by viewModel.showDeleteConfirmDialog.collectAsStateWithLifecycle()
     val showDefaultSmsDialog by viewModel.showDefaultSmsDialog.collectAsStateWithLifecycle()
 
@@ -76,6 +78,14 @@ fun MainScreen(
         if (hasPermissions) {
             viewModel.checkPermissionsAndDefaultSms()
             viewModel.loadMessages()
+            viewModel.loadSimCards()
+        }
+    }
+
+    // Refresh SIM cards when drawer opens
+    LaunchedEffect(drawerState.currentValue) {
+        if (drawerState.currentValue == DrawerValue.Open) {
+            viewModel.loadSimCards()
         }
     }
 
@@ -89,6 +99,7 @@ fun MainScreen(
             ) {
                 DrawerFilterPanel(
                     filterState = filterState,
+                    simCards = simCards,
                     onFilterChange = { viewModel.updateFilter(it) },
                     onClearFilters = { viewModel.clearFilters() }
                 )
@@ -413,6 +424,7 @@ fun MainScreen(
                                     isSelected = selectionState.isSelected(message.id),
                                     isMultiSelectMode = selectionState.isMultiSelectMode,
                                     keyword = filterState.keyword,
+                                    simDisplayName = viewModel.getSimDisplayName(message.subId),
                                     onItemClick = {
                                         if (selectionState.isMultiSelectMode) {
                                             viewModel.toggleSelection(message.id)

@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import top.yuameshi.sms.cleaner.data.model.FilterState
+import top.yuameshi.sms.cleaner.data.model.SimCardInfo
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -22,6 +23,7 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun DrawerFilterPanel(
     filterState: FilterState,
+    simCards: List<SimCardInfo>,
     onFilterChange: (FilterState) -> Unit,
     onClearFilters: () -> Unit,
     modifier: Modifier = Modifier
@@ -207,13 +209,24 @@ fun DrawerFilterPanel(
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(FilterState.SimId.entries.toList()) { simId ->
+            // "All" chip
+            item {
                 FilterChip(
-                    selected = filterState.simId == simId,
+                    selected = filterState.simSubscriptionId == null,
                     onClick = {
-                        onFilterChange(filterState.copy(simId = simId))
+                        onFilterChange(filterState.copy(simSubscriptionId = null))
                     },
-                    label = { Text(getSimIdName(simId)) }
+                    label = { Text("全部") }
+                )
+            }
+            // Dynamic SIM chips
+            items(simCards) { sim ->
+                FilterChip(
+                    selected = filterState.simSubscriptionId == sim.subscriptionId,
+                    onClick = {
+                        onFilterChange(filterState.copy(simSubscriptionId = sim.subscriptionId))
+                    },
+                    label = { Text(sim.getFormattedName()) }
                 )
             }
         }
@@ -350,10 +363,3 @@ private fun getMessageTypeName(type: FilterState.MessageType): String {
     }
 }
 
-private fun getSimIdName(simId: FilterState.SimId): String {
-    return when (simId) {
-        FilterState.SimId.ALL -> "全部"
-        FilterState.SimId.SIM1 -> "SIM1"
-        FilterState.SimId.SIM2 -> "SIM2"
-    }
-}

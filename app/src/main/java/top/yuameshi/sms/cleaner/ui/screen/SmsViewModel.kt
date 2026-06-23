@@ -14,6 +14,7 @@ import kotlinx.coroutines.launch
 import top.yuameshi.sms.cleaner.data.manager.SmsOperationManager
 import top.yuameshi.sms.cleaner.data.model.FilterState
 import top.yuameshi.sms.cleaner.data.model.SelectionState
+import top.yuameshi.sms.cleaner.data.model.SimCardInfo
 import top.yuameshi.sms.cleaner.data.model.SmsMessage
 import top.yuameshi.sms.cleaner.domain.usecase.ExportSmsUseCase
 import top.yuameshi.sms.cleaner.domain.usecase.GetSmsUseCase
@@ -72,6 +73,9 @@ class SmsViewModel @Inject constructor(
     private val _filterHistory = MutableStateFlow<List<String>>(emptyList())
     val filterHistory: StateFlow<List<String>> = _filterHistory.asStateFlow()
 
+    private val _simCards = MutableStateFlow<List<SimCardInfo>>(emptyList())
+    val simCards: StateFlow<List<SimCardInfo>> = _simCards.asStateFlow()
+
     private val _previewMessages = MutableStateFlow<List<SmsMessage>>(emptyList())
     val previewMessages: StateFlow<List<SmsMessage>> = _previewMessages.asStateFlow()
 
@@ -94,6 +98,7 @@ class SmsViewModel @Inject constructor(
     init {
         checkPermissionsAndDefaultSms()
         loadFilterHistory()
+        loadSimCards()
     }
 
     fun checkPermissionsAndDefaultSms() {
@@ -103,6 +108,15 @@ class SmsViewModel @Inject constructor(
 
     private fun loadFilterHistory() {
         _filterHistory.value = filterHistoryRepository.getHistory()
+    }
+
+    fun loadSimCards() {
+        _simCards.value = smsOperationManager.getSimCards()
+    }
+
+    fun getSimDisplayName(subscriptionId: Int): String {
+        return _simCards.value.find { it.subscriptionId == subscriptionId }
+            ?.getFormattedName() ?: "SIM $subscriptionId"
     }
 
     fun addFilterHistory(keyword: String) {

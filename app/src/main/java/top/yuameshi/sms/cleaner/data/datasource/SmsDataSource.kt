@@ -11,6 +11,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import top.yuameshi.sms.cleaner.data.model.FilterState
+import top.yuameshi.sms.cleaner.data.model.SimCardInfo
 import top.yuameshi.sms.cleaner.data.model.SmsMessage
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -281,22 +282,9 @@ class SmsDataSource @Inject constructor(
             FilterState.MessageType.ALL -> {}
         }
 
-        when (filterState.simId) {
-            FilterState.SimId.SIM1 -> {
-                val simIds = getActiveSimIds()
-                if (simIds.isNotEmpty()) {
-                    selections.add("${Telephony.Sms.SUBSCRIPTION_ID} = ?")
-                    args.add(simIds[0].toString())
-                }
-            }
-            FilterState.SimId.SIM2 -> {
-                val simIds = getActiveSimIds()
-                if (simIds.size > 1) {
-                    selections.add("${Telephony.Sms.SUBSCRIPTION_ID} = ?")
-                    args.add(simIds[1].toString())
-                }
-            }
-            FilterState.SimId.ALL -> {}
+        filterState.simSubscriptionId?.let { subId ->
+            selections.add("${Telephony.Sms.SUBSCRIPTION_ID} = ?")
+            args.add(subId.toString())
         }
 
         filterState.contactId?.let {
@@ -319,11 +307,19 @@ class SmsDataSource @Inject constructor(
         return calendar.timeInMillis
     }
 
-    private fun getActiveSimIds(): List<Int> {
+    fun getSimCards(): List<SimCardInfo> {
         return try {
             val subscriptionManager = context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as SubscriptionManager
             val subscriptions = subscriptionManager.activeSubscriptionInfoList
-            subscriptions?.map { it.subscriptionId } ?: emptyList()
+            subscriptions?.map { info ->
+                SimCardInfo(
+                    subscriptionId = info.subscriptionId,
+                    displayName = info.displayName?.toString() ?: "",
+                    carrierName = info.carrierName?.toString() ?: "",
+                    phoneNumber = info.number ?: "",
+                    slotIndex = info.simSlotIndex
+                )
+            }?.sortedBy { it.slotIndex } ?: emptyList()
         } catch (e: Exception) {
             emptyList()
         }

@@ -34,6 +34,7 @@ fun SmsListItem(
     isSelected: Boolean,
     isMultiSelectMode: Boolean,
     keyword: String,
+    simDisplayName: String? = null,
     onItemClick: () -> Unit,
     onLongClick: () -> Unit,
     onDeleteClick: () -> Unit,
@@ -194,8 +195,8 @@ fun SmsListItem(
 
                             // SIM card indicator
                             Text(
-                                text = "SIM ${message.subId}",
-                                fontSize = 10.sp,
+                                text = simDisplayName ?: "SIM ${message.subId}",
+                                style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(modifier = Modifier.width(4.dp))

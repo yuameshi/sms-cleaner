@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import dagger.hilt.android.qualifiers.ApplicationContext
 import top.yuameshi.sms.cleaner.data.model.FilterState
+import top.yuameshi.sms.cleaner.data.model.SimCardInfo
 import top.yuameshi.sms.cleaner.data.repository.SmsRepository
 import top.yuameshi.sms.cleaner.util.DefaultSmsManager
 import javax.inject.Inject
@@ -92,5 +93,9 @@ class SmsOperationManager @Inject constructor(
      */
     suspend fun checkDuplicate(address: String, body: String, date: Long): Boolean {
         return smsRepository.checkDuplicate(address, body, date)
+    }
+
+    fun getSimCards(): List<SimCardInfo> {
+        return smsRepository.getSimCards()
     }
 }
