@@ -3,6 +3,7 @@ package top.yuameshi.sms.cleaner.ui.screen
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -87,6 +88,11 @@ fun MainScreen(
         if (drawerState.currentValue == DrawerValue.Open) {
             viewModel.loadSimCards()
         }
+    }
+
+    // 拦截返回事件：多选模式下退出多选，而不是返回上一页
+    BackHandler(enabled = selectionState.isMultiSelectMode) {
+        viewModel.exitMultiSelectMode()
     }
 
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
@@ -228,7 +234,11 @@ fun MainScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surface,
+                        containerColor = if (selectionState.isMultiSelectMode) {
+                            MaterialTheme.colorScheme.surfaceContainer
+                        } else {
+                            MaterialTheme.colorScheme.surface
+                        },
                         scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
                     )
                 )
