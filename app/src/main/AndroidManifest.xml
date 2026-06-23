@@ -33,7 +33,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.SMSCleaner"
-        tools:targetApi="34">
+        tools:targetApi="37">
 
         <!-- Main Activity -->
         <activity
