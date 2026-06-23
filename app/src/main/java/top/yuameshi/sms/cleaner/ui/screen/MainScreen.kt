@@ -73,15 +73,6 @@ fun MainScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val filterState by viewModel.filterState.collectAsStateWithLifecycle()
-    val selectionState by viewModel.selectionState.collectAsStateWithLifecycle()
-    val operationState by viewModel.operationState.collectAsStateWithLifecycle()
-    val isDefaultSmsApp by viewModel.isDefaultSmsApp.collectAsStateWithLifecycle()
-    val previewMessages by viewModel.previewMessages.collectAsStateWithLifecycle()
-    val simCards by viewModel.simCards.collectAsStateWithLifecycle()
-    val showDeleteConfirmDialog by viewModel.showDeleteConfirmDialog.collectAsStateWithLifecycle()
-    val showDefaultSmsDialog by viewModel.showDefaultSmsDialog.collectAsStateWithLifecycle()
-    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
 
     var showExportDialog by remember { mutableStateOf(false) }
     var showImportDialog by remember { mutableStateOf(false) }
@@ -116,7 +107,7 @@ fun MainScreen(
     }
 
     // 拦截返回事件：多选模式下退出多选，而不是返回上一页
-    BackHandler(enabled = selectionState.isMultiSelectMode) {
+    BackHandler(enabled = uiState.selectionState.isMultiSelectMode) {
         viewModel.exitMultiSelectMode()
     }
 
@@ -129,8 +120,8 @@ fun MainScreen(
                 modifier = Modifier.width(280.dp)
             ) {
                 DrawerFilterPanel(
-                    filterState = filterState,
-                    simCards = simCards,
+                    filterState = uiState.filterState,
+                    simCards = uiState.simCards,
                     useShortSimName = viewModel.useShortSimName,
                     onFilterChange = { viewModel.updateFilter(it) },
                     onClearFilters = { viewModel.clearFilters() }
@@ -143,10 +134,10 @@ fun MainScreen(
             modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
             topBar = {
                 MainScreenTopBar(
-                    selectionState = selectionState,
-                    filterState = filterState,
-                    uiState = uiState,
-                    isDefaultSmsApp = isDefaultSmsApp,
+                    selectionState = uiState.selectionState,
+                    filterState = uiState.filterState,
+                    uiState = uiState.smsState,
+                    isDefaultSmsApp = uiState.isDefaultSmsApp,
                     onFilterClick = { scope.launch { drawerState.open() } },
                     onExportClick = { showExportDialog = true },
                     onImportClick = {
@@ -169,9 +160,9 @@ fun MainScreen(
                 )
             },
          bottomBar = {
-            if (selectionState.isMultiSelectMode) {
+            if (uiState.selectionState.isMultiSelectMode) {
                 MultiSelectBottomBar(
-                    hasSelection = selectionState.selectedCount > 0 || selectionState.isSelectAll,
+                    hasSelection = uiState.selectionState.selectedCount > 0 || uiState.selectionState.isSelectAll,
                     onDeleteClick = { viewModel.requestDeleteSelected() },
                     onSelectAllClick = { viewModel.selectAll() },
                     onInvertSelectionClick = { viewModel.invertSelection() },
@@ -196,24 +187,24 @@ fun MainScreen(
                 )
             } else {
                 // Search Bar with debounce
-                var searchText by remember { mutableStateOf(filterState.keyword) }
+                var searchText by remember { mutableStateOf(uiState.filterState.keyword) }
 
                 // Debounce effect: update filter after 500ms of no typing
                 LaunchedEffect(searchText) {
-                    if (searchText != filterState.keyword) {
+                    if (searchText != uiState.filterState.keyword) {
                         kotlinx.coroutines.delay(500)
-                        viewModel.updateFilter(filterState.copy(keyword = searchText))
+                        viewModel.updateFilter(uiState.filterState.copy(keyword = searchText))
                     }
                 }
 
                 // Sync external filter state changes to local state
-                LaunchedEffect(filterState.keyword) {
-                    if (filterState.keyword != searchText) {
-                        searchText = filterState.keyword
+                LaunchedEffect(uiState.filterState.keyword) {
+                    if (uiState.filterState.keyword != searchText) {
+                        searchText = uiState.filterState.keyword
                     }
                 }
 
-                when (val state = uiState) {
+                when (val state = uiState.smsState) {
                 is SmsUiState.Loading -> {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -225,14 +216,14 @@ fun MainScreen(
                 is SmsUiState.Success -> {
                     val pullRefreshState = rememberPullToRefreshState()
                     PullToRefreshBox(
-                        isRefreshing = state.isLoading || isRefreshing,
+                        isRefreshing = state.isLoading || uiState.isRefreshing,
                         onRefresh = { viewModel.refresh() },
                         modifier = Modifier.fillMaxSize(),
                         state = pullRefreshState,
                         indicator = {
                             PullToRefreshDefaults.Indicator(
                                 modifier = Modifier.align(Alignment.TopCenter),
-                                isRefreshing = state.isLoading || isRefreshing,
+                                isRefreshing = state.isLoading || uiState.isRefreshing,
                                 state = pullRefreshState,
                                 color = MaterialTheme.colorScheme.primary,
                                 containerColor = MaterialTheme.colorScheme.surfaceContainer,
@@ -285,7 +276,7 @@ fun MainScreen(
                                                 if (searchText.isNotEmpty()) {
                                                     IconButton(onClick = {
                                                         searchText = ""
-                                                        viewModel.updateFilter(filterState.copy(keyword = ""))
+                                                        viewModel.updateFilter(uiState.filterState.copy(keyword = ""))
                                                     }) {
                                                         Icon(Icons.Default.Clear, contentDescription = "清空")
                                                     }
@@ -304,17 +295,17 @@ fun MainScreen(
                                 ) { message ->
                                     SmsListItem(
                                         message = message,
-                                        isSelected = selectionState.isSelected(message.id),
-                                        isMultiSelectMode = selectionState.isMultiSelectMode,
-                                        keyword = filterState.keyword,
+                                        isSelected = uiState.selectionState.isSelected(message.id),
+                                        isMultiSelectMode = uiState.selectionState.isMultiSelectMode,
+                                        keyword = uiState.filterState.keyword,
                                         simDisplayName = viewModel.getSimDisplayName(message.subId),
                                         onItemClick = {
-                                            if (selectionState.isMultiSelectMode) {
+                                            if (uiState.selectionState.isMultiSelectMode) {
                                                 viewModel.toggleSelection(message.id)
                                             }
                                         },
                                         onLongClick = {
-                                            if (!selectionState.isMultiSelectMode) {
+                                            if (!uiState.selectionState.isMultiSelectMode) {
                                                 viewModel.enterMultiSelectMode(message.id)
                                             }
                                         },
@@ -375,16 +366,16 @@ fun MainScreen(
     }
 
     MainScreenDialogs(
-        showDeleteConfirmDialog = showDeleteConfirmDialog,
-        previewMessages = previewMessages,
+        showDeleteConfirmDialog = uiState.showDeleteConfirmDialog,
+        previewMessages = uiState.previewMessages,
         deleteCount = viewModel.getDeleteCount(),
         onLoadPreviewMessages = { viewModel.loadPreviewMessages() },
         onConfirmDelete = { viewModel.confirmDelete() },
         onCancelDelete = { viewModel.cancelDelete() },
         showExportDialog = showExportDialog,
-        filteredCount = (uiState as? SmsUiState.Success)?.filteredCount ?: 0,
-        totalCount = (uiState as? SmsUiState.Success)?.totalCount ?: 0,
-        hasFilters = filterState.hasFilters(),
+        filteredCount = (uiState.smsState as? SmsUiState.Success)?.filteredCount ?: 0,
+        totalCount = (uiState.smsState as? SmsUiState.Success)?.totalCount ?: 0,
+        hasFilters = uiState.filterState.hasFilters(),
         onExport = { exportAll, uri ->
             viewModel.exportMessages(exportAll, uri)
             showExportDialog = false
@@ -396,7 +387,7 @@ fun MainScreen(
             showImportDialog = false
         },
         onDismissImport = { showImportDialog = false },
-        showDefaultSmsDialog = showDefaultSmsDialog,
+        showDefaultSmsDialog = uiState.showDefaultSmsDialog,
         onDismissDefaultSmsDialog = { viewModel.dismissDefaultSmsDialog() },
         onConfirmDefaultSms = {
             viewModel.dismissDefaultSmsDialog()
@@ -404,7 +395,7 @@ fun MainScreen(
                 DefaultSmsManager.requestDefaultSmsRole(activity, defaultSmsLauncher)
             }
         },
-        operationState = operationState,
+        operationState = uiState.operationState,
         onResetOperationState = { viewModel.resetOperationState() }
     )
     }

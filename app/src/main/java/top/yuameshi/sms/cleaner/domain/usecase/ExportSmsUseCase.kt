@@ -1,26 +1,32 @@
 package top.yuameshi.sms.cleaner.domain.usecase
 
+import android.content.Context
+import android.net.Uri
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import top.yuameshi.sms.cleaner.data.model.FilterState
 import top.yuameshi.sms.cleaner.data.model.SmsMessage
 import top.yuameshi.sms.cleaner.data.repository.SmsRepository
-import java.io.OutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 
 class ExportSmsUseCase @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val smsRepository: SmsRepository
 ) {
     suspend operator fun invoke(
         filterState: FilterState,
         exportAll: Boolean,
-        outputStream: OutputStream,
+        uri: Uri,
         onProgress: (exported: Int, total: Int) -> Unit
     ): Result<Int> = withContext(Dispatchers.IO) {
         try {
+            val outputStream = context.contentResolver.openOutputStream(uri)
+                ?: throw Exception("无法打开输出流")
+
             val totalCount = if (exportAll) {
                 smsRepository.getTotalCount(FilterState())
             } else {

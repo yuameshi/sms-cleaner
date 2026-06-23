@@ -1,14 +1,13 @@
 package top.yuameshi.sms.cleaner.ui.screen
 
-import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import top.yuameshi.sms.cleaner.data.model.FilterState
@@ -16,6 +15,7 @@ import top.yuameshi.sms.cleaner.data.model.SelectionState
 import top.yuameshi.sms.cleaner.data.model.SimCardInfo
 import top.yuameshi.sms.cleaner.data.model.SmsMessage
 import top.yuameshi.sms.cleaner.domain.usecase.CheckDefaultSmsUseCase
+import top.yuameshi.sms.cleaner.domain.usecase.CheckPermissionsUseCase
 import top.yuameshi.sms.cleaner.domain.usecase.DeleteSmsUseCase
 import top.yuameshi.sms.cleaner.domain.usecase.DeleteType
 import top.yuameshi.sms.cleaner.domain.usecase.ExportSmsUseCase
@@ -23,63 +23,28 @@ import top.yuameshi.sms.cleaner.domain.usecase.GetSmsUseCase
 import top.yuameshi.sms.cleaner.domain.usecase.ImportSmsUseCase
 import top.yuameshi.sms.cleaner.domain.usecase.LoadSimCardsUseCase
 import top.yuameshi.sms.cleaner.data.repository.FilterHistoryRepository
-import top.yuameshi.sms.cleaner.util.PermissionUtils
 import javax.inject.Inject
 
 @HiltViewModel
 class SmsViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val getSmsUseCase: GetSmsUseCase,
     private val deleteSmsUseCase: DeleteSmsUseCase,
     private val exportSmsUseCase: ExportSmsUseCase,
     private val importSmsUseCase: ImportSmsUseCase,
     private val checkDefaultSmsUseCase: CheckDefaultSmsUseCase,
+    private val checkPermissionsUseCase: CheckPermissionsUseCase,
     private val filterHistoryRepository: FilterHistoryRepository,
     private val loadSimCardsUseCase: LoadSimCardsUseCase
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<SmsUiState>(SmsUiState.Loading)
-    val uiState: StateFlow<SmsUiState> = _uiState.asStateFlow()
-
-    private val _filterState = MutableStateFlow(FilterState())
-    val filterState: StateFlow<FilterState> = _filterState.asStateFlow()
+    private val _uiState = MutableStateFlow(SmsScreenUiState())
+    val uiState: StateFlow<SmsScreenUiState> = _uiState.asStateFlow()
 
     private val selectionManager = SelectionManager()
-    val selectionState: StateFlow<SelectionState> = selectionManager.selectionState
-
-    private val _operationState = MutableStateFlow<OperationState>(OperationState.Idle)
-    val operationState: StateFlow<OperationState> = _operationState.asStateFlow()
-
-    private val _isDefaultSmsApp = MutableStateFlow(false)
-    val isDefaultSmsApp: StateFlow<Boolean> = _isDefaultSmsApp.asStateFlow()
-
-    private val _hasPermissions = MutableStateFlow(false)
-    val hasPermissions: StateFlow<Boolean> = _hasPermissions.asStateFlow()
-
-    private val _filterHistory = MutableStateFlow<List<String>>(emptyList())
-    val filterHistory: StateFlow<List<String>> = _filterHistory.asStateFlow()
-
-    private val _simCards = MutableStateFlow<List<SimCardInfo>>(emptyList())
-    val simCards: StateFlow<List<SimCardInfo>> = _simCards.asStateFlow()
 
     // 缓存：短名称是否唯一（true=用短名称，false=用长名称）
     var useShortSimName = true
         private set
-
-    private val _previewMessages = MutableStateFlow<List<SmsMessage>>(emptyList())
-    val previewMessages: StateFlow<List<SmsMessage>> = _previewMessages.asStateFlow()
-
-    // 删除确认对话框状态
-    private val _showDeleteConfirmDialog = MutableStateFlow(false)
-    val showDeleteConfirmDialog: StateFlow<Boolean> = _showDeleteConfirmDialog.asStateFlow()
-
-    // 需要设置默认短信App的对话框状态
-    private val _showDefaultSmsDialog = MutableStateFlow(false)
-    val showDefaultSmsDialog: StateFlow<Boolean> = _showDefaultSmsDialog.asStateFlow()
-
-    // 下拉刷新状态
-    private val _isRefreshing = MutableStateFlow(false)
-    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
     // 待删除的消息ID（单条删除时使用）
     private var pendingDeleteMessageId: Long? = null
@@ -93,26 +58,37 @@ class SmsViewModel @Inject constructor(
         checkPermissionsAndDefaultSms()
         loadFilterHistory()
         loadSimCards()
+
+        // Observe SelectionManager state and mirror in consolidated _uiState
+        viewModelScope.launch {
+            selectionManager.selectionState.collect { selectionState ->
+                _uiState.update { it.copy(selectionState = selectionState) }
+            }
+        }
     }
 
     fun checkPermissionsAndDefaultSms() {
-        _hasPermissions.value = PermissionUtils.hasAllPermissions(context)
-        _isDefaultSmsApp.value = checkDefaultSmsUseCase()
+        _uiState.update {
+            it.copy(
+                hasPermissions = checkPermissionsUseCase(),
+                isDefaultSmsApp = checkDefaultSmsUseCase()
+            )
+        }
     }
 
     private fun loadFilterHistory() {
-        _filterHistory.value = filterHistoryRepository.getHistory()
+        _uiState.update { it.copy(filterHistory = filterHistoryRepository.getHistory()) }
     }
 
     fun loadSimCards() {
         val result = loadSimCardsUseCase()
-        _simCards.value = result.simCards
+        _uiState.update { it.copy(simCards = result.simCards) }
         // 判断短名称是否唯一：如果有重复的短名称，则使用长名称
         useShortSimName = result.useShortSimName
     }
 
     fun getSimDisplayName(subscriptionId: Int): String {
-        val card = _simCards.value.find { it.subscriptionId == subscriptionId }
+        val card = _uiState.value.simCards.find { it.subscriptionId == subscriptionId }
             ?: return "SIM $subscriptionId"
         return if (useShortSimName) card.getShortName() else card.getFormattedName()
     }
@@ -130,11 +106,11 @@ class SmsViewModel @Inject constructor(
     fun loadMessages() {
         viewModelScope.launch {
             // If we already have Success state, set isLoading to preserve subtitle
-            val currentState = _uiState.value
+            val currentState = _uiState.value.smsState
             if (currentState is SmsUiState.Success) {
-                _uiState.value = currentState.copy(isLoading = true)
+                _uiState.update { it.copy(smsState = currentState.copy(isLoading = true)) }
             } else {
-                _uiState.value = SmsUiState.Loading
+                _uiState.update { it.copy(smsState = SmsUiState.Loading) }
             }
             try {
                 currentPage = 0
@@ -142,23 +118,28 @@ class SmsViewModel @Inject constructor(
 
                 // Parallel execution: filteredCount + messages at the same time
                 // totalCount uses SmsDataSource internal cache (instant on cache hit)
-                val filteredCountDeferred = async { getSmsUseCase.getTotalCount(_filterState.value) }
-                val messagesDeferred = async { getSmsUseCase(_filterState.value, currentPage) }
+                val filterState = _uiState.value.filterState
+                val filteredCountDeferred = async { getSmsUseCase.getTotalCount(filterState) }
+                val messagesDeferred = async { getSmsUseCase(filterState, currentPage) }
 
                 totalCount = getSmsUseCase.getTotalCount(FilterState())  // Cache hit, instant return
                 filteredCount = filteredCountDeferred.await()
                 val messages = messagesDeferred.await()
                 allMessages.addAll(messages)
 
-                _uiState.value = SmsUiState.Success(
-                    messages = allMessages.toList(),
-                    totalCount = totalCount,
-                    filteredCount = filteredCount,
-                    hasMore = allMessages.size < filteredCount,
-                    isLoading = false
-                )
+                _uiState.update {
+                    it.copy(
+                        smsState = SmsUiState.Success(
+                            messages = allMessages.toList(),
+                            totalCount = totalCount,
+                            filteredCount = filteredCount,
+                            hasMore = allMessages.size < filteredCount,
+                            isLoading = false
+                        )
+                    )
+                }
             } catch (e: Exception) {
-                _uiState.value = SmsUiState.Error(e.message ?: "加载失败")
+                _uiState.update { it.copy(smsState = SmsUiState.Error(e.message ?: "加载失败")) }
             }
         }
     }
@@ -168,49 +149,58 @@ class SmsViewModel @Inject constructor(
      */
     fun refresh() {
         viewModelScope.launch {
-            _isRefreshing.value = true
+            _uiState.update { it.copy(isRefreshing = true) }
             try {
                 currentPage = 0
                 allMessages.clear()
 
-                val filteredCountDeferred = async { getSmsUseCase.getTotalCount(_filterState.value) }
-                val messagesDeferred = async { getSmsUseCase(_filterState.value, currentPage) }
+                val filterState = _uiState.value.filterState
+                val filteredCountDeferred = async { getSmsUseCase.getTotalCount(filterState) }
+                val messagesDeferred = async { getSmsUseCase(filterState, currentPage) }
 
                 totalCount = getSmsUseCase.getTotalCount(FilterState())
                 filteredCount = filteredCountDeferred.await()
                 val messages = messagesDeferred.await()
                 allMessages.addAll(messages)
 
-                _uiState.value = SmsUiState.Success(
-                    messages = allMessages.toList(),
-                    totalCount = totalCount,
-                    filteredCount = filteredCount,
-                    hasMore = allMessages.size < filteredCount,
-                    isLoading = false
-                )
+                _uiState.update {
+                    it.copy(
+                        smsState = SmsUiState.Success(
+                            messages = allMessages.toList(),
+                            totalCount = totalCount,
+                            filteredCount = filteredCount,
+                            hasMore = allMessages.size < filteredCount,
+                            isLoading = false
+                        )
+                    )
+                }
             } catch (e: Exception) {
-                _uiState.value = SmsUiState.Error(e.message ?: "刷新失败")
+                _uiState.update { it.copy(smsState = SmsUiState.Error(e.message ?: "刷新失败")) }
             } finally {
-                _isRefreshing.value = false
+                _uiState.update { it.copy(isRefreshing = false) }
             }
         }
     }
 
     fun loadMore() {
-        val currentState = _uiState.value
+        val currentState = _uiState.value.smsState
         if (currentState is SmsUiState.Success && currentState.hasMore) {
             viewModelScope.launch {
                 try {
                     currentPage++
-                    val messages = getSmsUseCase(_filterState.value, currentPage)
+                    val messages = getSmsUseCase(_uiState.value.filterState, currentPage)
                     allMessages.addAll(messages)
 
-                    _uiState.value = SmsUiState.Success(
-                        messages = allMessages.toList(),
-                        totalCount = totalCount,
-                        filteredCount = filteredCount,
-                        hasMore = allMessages.size < filteredCount
-                    )
+                    _uiState.update {
+                        it.copy(
+                            smsState = SmsUiState.Success(
+                                messages = allMessages.toList(),
+                                totalCount = totalCount,
+                                filteredCount = filteredCount,
+                                hasMore = allMessages.size < filteredCount
+                            )
+                        )
+                    }
                 } catch (e: Exception) {
                     // Keep current state on error
                 }
@@ -219,7 +209,7 @@ class SmsViewModel @Inject constructor(
     }
 
     fun updateFilter(filterState: FilterState) {
-        _filterState.value = filterState
+        _uiState.update { it.copy(filterState = filterState) }
         if (filterState.keyword.isNotEmpty()) {
             addFilterHistory(filterState.keyword)
         }
@@ -227,7 +217,7 @@ class SmsViewModel @Inject constructor(
     }
 
     fun clearFilters() {
-        _filterState.value = FilterState()
+        _uiState.update { it.copy(filterState = FilterState()) }
         loadMessages()
     }
 
@@ -252,12 +242,12 @@ class SmsViewModel @Inject constructor(
     fun requestDelete(messageId: Long) {
         // 检查是否需要设置默认短信App
         if (!checkDefaultSmsUseCase()) {
-            _showDefaultSmsDialog.value = true
+            _uiState.update { it.copy(showDefaultSmsDialog = true) }
             return
         }
         // 保存待删除的消息ID并显示确认对话框
         pendingDeleteMessageId = messageId
-        _showDeleteConfirmDialog.value = true
+        _uiState.update { it.copy(showDeleteConfirmDialog = true) }
     }
 
     /**
@@ -267,43 +257,46 @@ class SmsViewModel @Inject constructor(
     fun requestDeleteSelected() {
         // 检查是否需要设置默认短信App
         if (!checkDefaultSmsUseCase()) {
-            _showDefaultSmsDialog.value = true
+            _uiState.update { it.copy(showDefaultSmsDialog = true) }
             return
         }
         // 显示确认对话框
-        _showDeleteConfirmDialog.value = true
+        _uiState.update { it.copy(showDeleteConfirmDialog = true) }
     }
 
     /**
      * 确认删除（用户点击确认后调用）
      */
     fun confirmDelete() {
-        _showDeleteConfirmDialog.value = false
+        _uiState.update { it.copy(showDeleteConfirmDialog = false) }
         viewModelScope.launch {
-            _operationState.value = OperationState.Progress(0, 0)
+            _uiState.update { it.copy(operationState = OperationState.Progress(0, 0)) }
+            val currentSelection = _uiState.value.selectionState
             val deleteResult = if (pendingDeleteMessageId != null) {
                 // 单条删除
                 deleteSmsUseCase(
                     deleteType = DeleteType.Single,
                     ids = listOf(pendingDeleteMessageId!!)
                 )
-            } else if (selectionState.value.isSelectAll) {
+            } else if (currentSelection.isSelectAll) {
                 // 全选删除
                 deleteSmsUseCase(
                     deleteType = DeleteType.AllByFilter,
-                    filterState = _filterState.value
+                    filterState = _uiState.value.filterState
                 )
             } else {
                 // 多选删除
                 deleteSmsUseCase(
                     deleteType = DeleteType.Multiple,
-                    ids = selectionState.value.selectedIds.toList()
+                    ids = currentSelection.selectedIds.toList()
                 )
             }
 
             deleteResult.fold(
                 onSuccess = { deletedCount ->
-                    _operationState.value = OperationState.Success("成功删除 $deletedCount 条短信")
+                    _uiState.update {
+                        it.copy(operationState = OperationState.Success("成功删除 $deletedCount 条短信"))
+                    }
                     exitMultiSelectMode()
                     pendingDeleteMessageId = null
                     loadMessages()
@@ -311,11 +304,17 @@ class SmsViewModel @Inject constructor(
                 onFailure = { e ->
                     if (e is IllegalStateException) {
                         // 不是默认短信App，显示设置对话框
-                        _operationState.value = OperationState.Idle
-                        _showDefaultSmsDialog.value = true
-                        _isDefaultSmsApp.value = false
+                        _uiState.update {
+                            it.copy(
+                                operationState = OperationState.Idle,
+                                showDefaultSmsDialog = true,
+                                isDefaultSmsApp = false
+                            )
+                        }
                     } else {
-                        _operationState.value = OperationState.Error(e.message ?: "删除失败")
+                        _uiState.update {
+                            it.copy(operationState = OperationState.Error(e.message ?: "删除失败"))
+                        }
                     }
                     pendingDeleteMessageId = null
                 }
@@ -327,7 +326,7 @@ class SmsViewModel @Inject constructor(
      * 取消删除（用户点击取消后调用）
      */
     fun cancelDelete() {
-        _showDeleteConfirmDialog.value = false
+        _uiState.update { it.copy(showDeleteConfirmDialog = false) }
         pendingDeleteMessageId = null
     }
 
@@ -335,7 +334,7 @@ class SmsViewModel @Inject constructor(
      * 关闭默认短信App对话框
      */
     fun dismissDefaultSmsDialog() {
-        _showDefaultSmsDialog.value = false
+        _uiState.update { it.copy(showDefaultSmsDialog = false) }
     }
 
     /**
@@ -345,80 +344,105 @@ class SmsViewModel @Inject constructor(
         return if (pendingDeleteMessageId != null) {
             1
         } else {
-            selectionState.value.selectedCount
+            _uiState.value.selectionState.selectedCount
         }
     }
 
     fun exportMessages(exportAll: Boolean, uri: Uri) {
         viewModelScope.launch {
-            _operationState.value = OperationState.Progress(0, 0)
+            _uiState.update { it.copy(operationState = OperationState.Progress(0, 0)) }
 
             try {
-                val outputStream = context.contentResolver.openOutputStream(uri)
-                    ?: throw Exception("无法打开输出流")
-
                 val result = exportSmsUseCase(
-                    filterState = _filterState.value,
+                    filterState = _uiState.value.filterState,
                     exportAll = exportAll,
-                    outputStream = outputStream,
+                    uri = uri,
                     onProgress = { exported, total ->
-                        _operationState.value = OperationState.Progress(exported, total)
+                        _uiState.update {
+                            it.copy(operationState = OperationState.Progress(exported, total))
+                        }
                     }
                 )
 
                 result.fold(
                     onSuccess = { exportedCount ->
-                        _operationState.value = OperationState.Success(
-                            "导出完成！共导出 $exportedCount 条短信"
-                        )
+                        _uiState.update {
+                            it.copy(
+                                operationState = OperationState.Success(
+                                    "导出完成！共导出 $exportedCount 条短信"
+                                )
+                            )
+                        }
                     },
                     onFailure = { e ->
-                        _operationState.value = OperationState.Error(e.message ?: "导出失败")
+                        _uiState.update {
+                            it.copy(operationState = OperationState.Error(e.message ?: "导出失败"))
+                        }
                     }
                 )
             } catch (e: Exception) {
-                _operationState.value = OperationState.Error(e.message ?: "导出失败")
+                _uiState.update {
+                    it.copy(operationState = OperationState.Error(e.message ?: "导出失败"))
+                }
             }
         }
     }
 
     fun importMessages(uri: Uri) {
         viewModelScope.launch {
-            _operationState.value = OperationState.Progress(0, 0)
+            _uiState.update { it.copy(operationState = OperationState.Progress(0, 0)) }
 
             try {
                 val result = importSmsUseCase(
                     uri = uri,
                     onProgress = { imported, skipped ->
-                        _operationState.value = OperationState.Progress(imported, imported + skipped)
+                        _uiState.update {
+                            it.copy(operationState = OperationState.Progress(imported, imported + skipped))
+                        }
                     }
                 )
 
                 result.fold(
                     onSuccess = { importResult ->
-                        _operationState.value = OperationState.Success(
-                            "导入完成！成功导入 ${importResult.imported} 条，跳过重复 ${importResult.skipped} 条"
-                        )
+                        _uiState.update {
+                            it.copy(
+                                operationState = OperationState.Success(
+                                    "导入完成！成功导入 ${importResult.imported} 条，跳过重复 ${importResult.skipped} 条"
+                                )
+                            )
+                        }
                         loadMessages()
                     },
                     onFailure = { e ->
                         if (e is IllegalStateException) {
                             // 不是默认短信App，显示设置对话框
-                            _operationState.value = OperationState.Idle
-                            _showDefaultSmsDialog.value = true
-                            _isDefaultSmsApp.value = false
+                            _uiState.update {
+                                it.copy(
+                                    operationState = OperationState.Idle,
+                                    showDefaultSmsDialog = true,
+                                    isDefaultSmsApp = false
+                                )
+                            }
                         } else {
-                            _operationState.value = OperationState.Error(e.message ?: "导入失败")
+                            _uiState.update {
+                                it.copy(operationState = OperationState.Error(e.message ?: "导入失败"))
+                            }
                         }
                     }
                 )
             } catch (e: IllegalStateException) {
                 // 不是默认短信App，显示设置对话框
-                _operationState.value = OperationState.Idle
-                _showDefaultSmsDialog.value = true
-                _isDefaultSmsApp.value = false
+                _uiState.update {
+                    it.copy(
+                        operationState = OperationState.Idle,
+                        showDefaultSmsDialog = true,
+                        isDefaultSmsApp = false
+                    )
+                }
             } catch (e: Exception) {
-                _operationState.value = OperationState.Error(e.message ?: "导入失败")
+                _uiState.update {
+                    it.copy(operationState = OperationState.Error(e.message ?: "导入失败"))
+                }
             }
         }
     }
@@ -430,7 +454,7 @@ class SmsViewModel @Inject constructor(
      */
     fun requestImport(): Boolean {
         if (!checkDefaultSmsUseCase()) {
-            _showDefaultSmsDialog.value = true
+            _uiState.update { it.copy(showDefaultSmsDialog = true) }
             return false
         }
         return true
@@ -439,22 +463,23 @@ class SmsViewModel @Inject constructor(
     fun loadPreviewMessages() {
         viewModelScope.launch {
             try {
+                val currentSelection = _uiState.value.selectionState
                 val messages = if (pendingDeleteMessageId != null) {
                     // 单条删除预览
                     allMessages.filter { it.id == pendingDeleteMessageId }.take(5)
-                } else if (selectionState.value.isSelectAll) {
-                    getSmsUseCase(_filterState.value, 0, 5)
+                } else if (currentSelection.isSelectAll) {
+                    getSmsUseCase(_uiState.value.filterState, 0, 5)
                 } else {
-                    allMessages.filter { it.id in selectionState.value.selectedIds }.take(5)
+                    allMessages.filter { it.id in currentSelection.selectedIds }.take(5)
                 }
-                _previewMessages.value = messages
+                _uiState.update { it.copy(previewMessages = messages) }
             } catch (e: Exception) {
-                _previewMessages.value = emptyList()
+                _uiState.update { it.copy(previewMessages = emptyList()) }
             }
         }
     }
 
     fun resetOperationState() {
-        _operationState.value = OperationState.Idle
+        _uiState.update { it.copy(operationState = OperationState.Idle) }
     }
 }
