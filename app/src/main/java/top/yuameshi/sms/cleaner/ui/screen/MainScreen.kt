@@ -303,12 +303,12 @@ fun MainScreen(
                 }
             }
         },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0)
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .imePadding()
         ) {
             // Content
             if (!hasPermissions) {
