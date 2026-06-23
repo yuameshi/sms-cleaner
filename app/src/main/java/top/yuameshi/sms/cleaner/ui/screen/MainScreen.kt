@@ -100,6 +100,7 @@ fun MainScreen(
                 DrawerFilterPanel(
                     filterState = filterState,
                     simCards = simCards,
+                    useShortSimName = viewModel.useShortSimName,
                     onFilterChange = { viewModel.updateFilter(it) },
                     onClearFilters = { viewModel.clearFilters() }
                 )

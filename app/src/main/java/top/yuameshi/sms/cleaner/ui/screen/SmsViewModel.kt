@@ -76,6 +76,10 @@ class SmsViewModel @Inject constructor(
     private val _simCards = MutableStateFlow<List<SimCardInfo>>(emptyList())
     val simCards: StateFlow<List<SimCardInfo>> = _simCards.asStateFlow()
 
+    // 缓存：短名称是否唯一（true=用短名称，false=用长名称）
+    var useShortSimName = true
+        private set
+
     private val _previewMessages = MutableStateFlow<List<SmsMessage>>(emptyList())
     val previewMessages: StateFlow<List<SmsMessage>> = _previewMessages.asStateFlow()
 
@@ -111,12 +115,17 @@ class SmsViewModel @Inject constructor(
     }
 
     fun loadSimCards() {
-        _simCards.value = smsOperationManager.getSimCards()
+        val cards = smsOperationManager.getSimCards()
+        _simCards.value = cards
+        // 判断短名称是否唯一：如果有重复的短名称，则使用长名称
+        val shortNames = cards.map { it.getShortName() }
+        useShortSimName = shortNames.distinct().size == shortNames.size
     }
 
     fun getSimDisplayName(subscriptionId: Int): String {
-        return _simCards.value.find { it.subscriptionId == subscriptionId }
-            ?.getFormattedName() ?: "SIM $subscriptionId"
+        val card = _simCards.value.find { it.subscriptionId == subscriptionId }
+            ?: return "SIM $subscriptionId"
+        return if (useShortSimName) card.getShortName() else card.getFormattedName()
     }
 
     fun addFilterHistory(keyword: String) {

@@ -7,17 +7,24 @@ data class SimCardInfo(
     val phoneNumber: String,
     val slotIndex: Int
 ) {
+    /**
+     * 短名称：仅运营商名称（不含手机号）
+     */
+    fun getShortName(): String {
+        return when {
+            displayName.isNotBlank() -> displayName
+            carrierName.isNotBlank() -> carrierName
+            else -> "SIM ${slotIndex + 1}"
+        }
+    }
+
+    /**
+     * 长名称：运营商名称 + 蒙版手机号
+     */
     fun getFormattedName(): String {
         val parts = mutableListOf<String>()
+        parts.add(getShortName())
         
-        // Priority: displayName > carrierName > "SIM ${slotIndex + 1}"
-        when {
-            displayName.isNotBlank() -> parts.add(displayName)
-            carrierName.isNotBlank() -> parts.add(carrierName)
-            else -> parts.add("SIM ${slotIndex + 1}")
-        }
-        
-        // Append phone number if available (masked for privacy)
         if (phoneNumber.isNotBlank()) {
             val masked = if (phoneNumber.length > 4) {
                 "*${phoneNumber.takeLast(4)}"

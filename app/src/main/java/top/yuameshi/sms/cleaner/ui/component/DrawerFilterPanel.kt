@@ -24,6 +24,7 @@ import java.time.format.DateTimeFormatter
 fun DrawerFilterPanel(
     filterState: FilterState,
     simCards: List<SimCardInfo>,
+    useShortSimName: Boolean = true,
     onFilterChange: (FilterState) -> Unit,
     onClearFilters: () -> Unit,
     modifier: Modifier = Modifier
@@ -226,7 +227,7 @@ fun DrawerFilterPanel(
                     onClick = {
                         onFilterChange(filterState.copy(simSubscriptionId = sim.subscriptionId))
                     },
-                    label = { Text(sim.getFormattedName()) }
+                    label = { Text(if (useShortSimName) sim.getShortName() else sim.getFormattedName()) }
                 )
             }
         }
