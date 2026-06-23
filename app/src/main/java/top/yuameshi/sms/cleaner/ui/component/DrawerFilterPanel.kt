@@ -1,5 +1,6 @@
 package top.yuameshi.sms.cleaner.ui.component
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -11,9 +12,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import top.yuameshi.sms.cleaner.data.model.FilterState
 import top.yuameshi.sms.cleaner.data.model.SimCardInfo
+import top.yuameshi.sms.cleaner.util.DeviceUtils
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -29,9 +32,21 @@ fun DrawerFilterPanel(
     onClearFilters: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var showDatePicker by remember { mutableStateOf(false) }
     var customStartDate by remember { mutableStateOf(filterState.customStartDate) }
     var customEndDate by remember { mutableStateOf(filterState.customEndDate) }
+
+    // 监听SIM卡选择变化，在MIUI/澎湃OS上显示警告
+    LaunchedEffect(filterState.simSubscriptionId) {
+        if (filterState.simSubscriptionId != null && DeviceUtils.isMiuiOrHyperOS()) {
+            Toast.makeText(
+                context,
+                "MIUI/澎湃OS可能无法正确按SIM卡筛选",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+    }
 
     Column(
         modifier = modifier
