@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
@@ -17,8 +16,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -26,7 +23,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,7 +37,6 @@ import top.yuameshi.sms.cleaner.data.model.FilterState
 import top.yuameshi.sms.cleaner.data.model.SimCardInfo
 import top.yuameshi.sms.cleaner.util.DeviceUtils
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
@@ -273,95 +268,23 @@ fun DrawerFilterPanel(
 
     // Date Range Picker Dialog
     if (showDatePicker) {
-        val dateRangePickerState = rememberDateRangePickerState(
-            initialSelectedStartDateMillis = customStartDate,
-            initialSelectedEndDateMillis = customEndDate
-        )
-
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val startDateMillis = dateRangePickerState.selectedStartDateMillis
-                        val endDateMillis = dateRangePickerState.selectedEndDateMillis
-                        if (startDateMillis != null && endDateMillis != null) {
-                            customStartDate = startDateMillis
-                            customEndDate = endDateMillis
-                            // 立即应用自定义日期筛选
-                            onFilterChange(
-                                filterState.copy(
-                                    dateRange = FilterState.DateRange.CUSTOM,
-                                    customStartDate = startDateMillis,
-                                    customEndDate = endDateMillis
-                                )
-                            )
-                        }
-                        showDatePicker = false
-                    },
-                    enabled = dateRangePickerState.selectedEndDateMillis != null
-                ) {
-                    Text("确定")
-                }
+        SmsDatePickerDialog(
+            onDateSelected = { startDateMillis, endDateMillis ->
+                customStartDate = startDateMillis
+                customEndDate = endDateMillis
+                // 立即应用自定义日期筛选
+                onFilterChange(
+                    filterState.copy(
+                        dateRange = FilterState.DateRange.CUSTOM,
+                        customStartDate = startDateMillis,
+                        customEndDate = endDateMillis
+                    )
+                )
             },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) {
-                    Text("取消")
-                }
-            }
-        ) {
-            DateRangePicker(
-                state = dateRangePickerState,
-                modifier = Modifier.heightIn(max = 420.dp),
-                title = {
-                    // Custom title with consistent padding
-                    Text(
-                        text = "选择日期",
-                        modifier = Modifier.padding(start = 24.dp, top = 16.dp, end = 12.dp, bottom = 0.dp),
-                        style = MaterialTheme.typography.bodyLarge,
-                        maxLines = 1
-                    )
-                },
-                headline = {
-                    // Custom headline with shorter date format
-                    val startDate = dateRangePickerState.selectedStartDateMillis
-                    val endDate = dateRangePickerState.selectedEndDateMillis
-                    val formatter = DateTimeFormatter.ofPattern("M月d日")
-                    
-                    val headlineText = when {
-                        startDate != null && endDate != null -> {
-                            val start = Instant.ofEpochMilli(startDate)
-                                .atZone(ZoneId.systemDefault())
-                                .toLocalDate()
-                            val end = Instant.ofEpochMilli(endDate)
-                                .atZone(ZoneId.systemDefault())
-                                .toLocalDate()
-                            "${start.format(formatter)} - ${end.format(formatter)}"
-                        }
-                        startDate != null -> {
-                            val start = Instant.ofEpochMilli(startDate)
-                                .atZone(ZoneId.systemDefault())
-                                .toLocalDate()
-                            start.format(formatter)
-                        }
-                        endDate != null -> {
-                            val end = Instant.ofEpochMilli(endDate)
-                                .atZone(ZoneId.systemDefault())
-                                .toLocalDate()
-                            end.format(formatter)
-                        }
-                        else -> "选择日期范围"
-                    }
-                    
-                    Text(
-                        text = headlineText,
-                        modifier = Modifier.padding(start = 24.dp, top = 8.dp, end = 12.dp, bottom = 12.dp),
-                        style = MaterialTheme.typography.headlineSmall,
-                        maxLines = 1
-                    )
-                }
-            )
-        }
+            onDismiss = { showDatePicker = false },
+            initialStartDate = customStartDate,
+            initialEndDate = customEndDate
+        )
     }
 }
 

@@ -39,17 +39,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import top.yuameshi.sms.cleaner.data.model.SmsMessage
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import top.yuameshi.sms.cleaner.util.formatDate
+import top.yuameshi.sms.cleaner.util.getInitial
+import top.yuameshi.sms.cleaner.util.highlightKeyword
 
 @OptIn(ExperimentalFoundationApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -265,32 +262,6 @@ fun SmsListItem(
     )
 }
 
-private fun getInitial(message: SmsMessage): String {
-    val name = message.contactName ?: message.address
-    return if (name.isNotEmpty()) {
-        name.first().toString()
-    } else {
-        "?"
-    }
-}
-
-private fun formatDate(timestamp: Long): String {
-    val now = System.currentTimeMillis()
-    val diff = now - timestamp
-
-    return when {
-        diff < 24 * 60 * 60 * 1000 -> {
-            SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestamp))
-        }
-        diff < 7 * 24 * 60 * 60 * 1000 -> {
-            SimpleDateFormat("EEEE", Locale.getDefault()).format(Date(timestamp))
-        }
-        else -> {
-            SimpleDateFormat("MM-dd", Locale.getDefault()).format(Date(timestamp))
-        }
-    }
-}
-
 @Composable
 private fun getTypeColor(type: Int): Color {
     val colorScheme = MaterialTheme.colorScheme
@@ -302,29 +273,5 @@ private fun getTypeColor(type: Int): Color {
         SmsMessage.TYPE_FAILED -> colorScheme.error           // 发送失败
         SmsMessage.TYPE_QUEUED -> colorScheme.tertiary        // 待发送
         else -> colorScheme.onSurfaceVariant
-    }
-}
-
-@Composable
-private fun highlightKeyword(text: String, keyword: String): androidx.compose.ui.text.AnnotatedString {
-    val highlightBackground = MaterialTheme.colorScheme.tertiaryContainer
-    return buildAnnotatedString {
-        var startIndex = 0
-        val lowerText = text.lowercase()
-        val lowerKeyword = keyword.lowercase()
-
-        while (startIndex < text.length) {
-            val index = lowerText.indexOf(lowerKeyword, startIndex)
-            if (index == -1) {
-                append(text.substring(startIndex))
-                break
-            }
-
-            append(text.substring(startIndex, index))
-            withStyle(style = SpanStyle(background = highlightBackground)) {
-                append(text.substring(index, index + keyword.length))
-            }
-            startIndex = index + keyword.length
-        }
     }
 }

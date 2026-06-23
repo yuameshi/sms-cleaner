@@ -39,8 +39,8 @@ class SmsViewModel @Inject constructor(
     private val _filterState = MutableStateFlow(FilterState())
     val filterState: StateFlow<FilterState> = _filterState.asStateFlow()
 
-    private val _selectionState = MutableStateFlow(SelectionState())
-    val selectionState: StateFlow<SelectionState> = _selectionState.asStateFlow()
+    private val selectionManager = SelectionManager()
+    val selectionState: StateFlow<SelectionState> = selectionManager.selectionState
 
     private val _operationState = MutableStateFlow<OperationState>(OperationState.Idle)
     val operationState: StateFlow<OperationState> = _operationState.asStateFlow()
@@ -227,33 +227,19 @@ class SmsViewModel @Inject constructor(
         loadMessages()
     }
 
-    fun enterMultiSelectMode(id: Long) {
-        _selectionState.value = _selectionState.value.enterMultiSelectMode(id)
-    }
+    fun enterMultiSelectMode(id: Long) = selectionManager.enterMultiSelectMode(id)
 
-    fun exitMultiSelectMode() {
-        _selectionState.value = _selectionState.value.exitMultiSelectMode()
-    }
+    fun exitMultiSelectMode() = selectionManager.exitMultiSelectMode()
 
-    fun toggleSelection(id: Long) {
-        _selectionState.value = _selectionState.value.toggleSelection(id)
-    }
+    fun toggleSelection(id: Long) = selectionManager.toggleSelection(id)
 
-    fun selectAll() {
-        _selectionState.value = _selectionState.value.selectAll(filteredCount)
-    }
+    fun selectAll() = selectionManager.selectAll(filteredCount)
 
-    fun invertSelection() {
-        _selectionState.value = _selectionState.value.invertSelection(allMessages.map { it.id })
-    }
+    fun invertSelection() = selectionManager.invertSelection(allMessages.map { it.id })
 
-    fun deselectAll() {
-        _selectionState.value = _selectionState.value.deselectAll()
-    }
+    fun deselectAll() = selectionManager.deselectAll()
 
-    fun clearSelection() {
-        _selectionState.value = _selectionState.value.clearSelection()
-    }
+    fun clearSelection() = selectionManager.clearSelection()
 
     /**
      * 请求删除单条消息（侧滑删除调用）
@@ -295,16 +281,16 @@ class SmsViewModel @Inject constructor(
                 val deletedCount = if (pendingDeleteMessageId != null) {
                     // 单条删除
                     smsOperationManager.deleteMessages(listOf(pendingDeleteMessageId!!))
-                } else if (_selectionState.value.isSelectAll) {
+                } else if (selectionState.value.isSelectAll) {
                     // 全选删除
                     smsOperationManager.deleteMessagesByFilter(_filterState.value)
                 } else {
                     // 多选删除
-                    smsOperationManager.deleteMessages(_selectionState.value.selectedIds.toList())
+                    smsOperationManager.deleteMessages(selectionState.value.selectedIds.toList())
                 }
 
                 _operationState.value = OperationState.Success("成功删除 $deletedCount 条短信")
-                _selectionState.value = SelectionState()
+                exitMultiSelectMode()
                 pendingDeleteMessageId = null
                 loadMessages()
             } catch (e: IllegalStateException) {
@@ -342,7 +328,7 @@ class SmsViewModel @Inject constructor(
         return if (pendingDeleteMessageId != null) {
             1
         } else {
-            _selectionState.value.selectedCount
+            selectionState.value.selectedCount
         }
     }
 
@@ -439,10 +425,10 @@ class SmsViewModel @Inject constructor(
                 val messages = if (pendingDeleteMessageId != null) {
                     // 单条删除预览
                     allMessages.filter { it.id == pendingDeleteMessageId }.take(5)
-                } else if (_selectionState.value.isSelectAll) {
+                } else if (selectionState.value.isSelectAll) {
                     getSmsUseCase(_filterState.value, 0, 5)
                 } else {
-                    allMessages.filter { it.id in _selectionState.value.selectedIds }.take(5)
+                    allMessages.filter { it.id in selectionState.value.selectedIds }.take(5)
                 }
                 _previewMessages.value = messages
             } catch (e: Exception) {
