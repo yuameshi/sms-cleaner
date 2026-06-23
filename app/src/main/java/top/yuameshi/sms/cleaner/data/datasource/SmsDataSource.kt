@@ -28,7 +28,7 @@ class SmsDataSource @Inject constructor(
         page: Int,
         pageSize: Int = 50
     ): List<SmsMessage> = withContext(Dispatchers.IO) {
-        val (selection, selectionArgs) = buildSelection(filterState)
+        val (selection, selectionArgs) = SmsSelectionBuilder.buildSelection(filterState)
         val offset = page * pageSize
 
         val cursor = contentResolver.query(
@@ -85,7 +85,7 @@ class SmsDataSource @Inject constructor(
             cachedTotalCount?.let { return@withContext it }
         }
 
-        val (selection, selectionArgs) = buildSelection(filterState)
+        val (selection, selectionArgs) = SmsSelectionBuilder.buildSelection(filterState)
 
         val cursor = contentResolver.query(
             Telephony.Sms.CONTENT_URI,
@@ -124,7 +124,7 @@ class SmsDataSource @Inject constructor(
     }
 
     suspend fun deleteMessagesByFilter(filterState: FilterState): Int = withContext(Dispatchers.IO) {
-        val (selection, selectionArgs) = buildSelection(filterState)
+        val (selection, selectionArgs) = SmsSelectionBuilder.buildSelection(filterState)
         val result = contentResolver.delete(
             Telephony.Sms.CONTENT_URI,
             selection,
@@ -179,139 +179,6 @@ class SmsDataSource @Inject constructor(
 
     fun invalidateTotalCountCache() {
         cachedTotalCount = null
-    }
-
-    private fun buildSelection(filterState: FilterState): Pair<String?, Array<String>?> {
-        val selections = mutableListOf<String>()
-        val args = mutableListOf<String>()
-
-        if (filterState.keyword.isNotEmpty()) {
-            selections.add("${Telephony.Sms.BODY} LIKE ?")
-            args.add("%${filterState.keyword}%")
-        }
-
-        if (filterState.number.isNotEmpty()) {
-            selections.add("${Telephony.Sms.ADDRESS} LIKE ?")
-            args.add("%${filterState.number}%")
-        }
-
-        when (filterState.dateRange) {
-            FilterState.DateRange.TODAY -> {
-                val todayStart = getTodayStart()
-                selections.add("${Telephony.Sms.DATE} >= ?")
-                args.add(todayStart.toString())
-                // Add upper bound for consistency (end of today)
-                val calendar = java.util.Calendar.getInstance()
-                calendar.set(java.util.Calendar.HOUR_OF_DAY, 23)
-                calendar.set(java.util.Calendar.MINUTE, 59)
-                calendar.set(java.util.Calendar.SECOND, 59)
-                calendar.set(java.util.Calendar.MILLISECOND, 999)
-                selections.add("${Telephony.Sms.DATE} <= ?")
-                args.add(calendar.timeInMillis.toString())
-            }
-            FilterState.DateRange.LAST_7_DAYS -> {
-                val sevenDaysAgo = System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000
-                selections.add("${Telephony.Sms.DATE} >= ?")
-                args.add(sevenDaysAgo.toString())
-            }
-            FilterState.DateRange.LAST_30_DAYS -> {
-                val thirtyDaysAgo = System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000
-                selections.add("${Telephony.Sms.DATE} >= ?")
-                args.add(thirtyDaysAgo.toString())
-            }
-            FilterState.DateRange.LAST_90_DAYS -> {
-                val ninetyDaysAgo = System.currentTimeMillis() - 90L * 24 * 60 * 60 * 1000
-                selections.add("${Telephony.Sms.DATE} >= ?")
-                args.add(ninetyDaysAgo.toString())
-            }
-            FilterState.DateRange.CUSTOM -> {
-                filterState.customStartDate?.let {
-                    selections.add("${Telephony.Sms.DATE} >= ?")
-                    args.add(it.toString())
-                }
-                filterState.customEndDate?.let {
-                    // Adjust endDate to end of day (23:59:59.999) to include all messages on that day
-                    val calendar = java.util.Calendar.getInstance()
-                    calendar.timeInMillis = it
-                    calendar.set(java.util.Calendar.HOUR_OF_DAY, 23)
-                    calendar.set(java.util.Calendar.MINUTE, 59)
-                    calendar.set(java.util.Calendar.SECOND, 59)
-                    calendar.set(java.util.Calendar.MILLISECOND, 999)
-                    val endOfDay = calendar.timeInMillis
-                    selections.add("${Telephony.Sms.DATE} <= ?")
-                    args.add(endOfDay.toString())
-                }
-            }
-            FilterState.DateRange.ALL -> {}
-        }
-
-        when (filterState.readStatus) {
-            FilterState.ReadStatus.READ -> {
-                selections.add("${Telephony.Sms.READ} = ?")
-                args.add("1")
-            }
-            FilterState.ReadStatus.UNREAD -> {
-                selections.add("${Telephony.Sms.READ} = ?")
-                args.add("0")
-            }
-            FilterState.ReadStatus.ALL -> {}
-        }
-
-        when (filterState.lockStatus) {
-            FilterState.LockStatus.LOCKED -> {
-                selections.add("${Telephony.Sms.LOCKED} = ?")
-                args.add("1")
-            }
-            FilterState.LockStatus.UNLOCKED -> {
-                selections.add("${Telephony.Sms.LOCKED} = ?")
-                args.add("0")
-            }
-            FilterState.LockStatus.ALL -> {}
-        }
-
-        when (filterState.messageType) {
-            FilterState.MessageType.INBOX -> {
-                selections.add("${Telephony.Sms.TYPE} = ?")
-                args.add(SmsMessage.TYPE_INBOX.toString())
-            }
-            FilterState.MessageType.SENT -> {
-                selections.add("${Telephony.Sms.TYPE} = ?")
-                args.add(SmsMessage.TYPE_SENT.toString())
-            }
-            FilterState.MessageType.DRAFT -> {
-                selections.add("${Telephony.Sms.TYPE} = ?")
-                args.add(SmsMessage.TYPE_DRAFT.toString())
-            }
-            FilterState.MessageType.OUTBOX -> {
-                selections.add("${Telephony.Sms.TYPE} = ?")
-                args.add(SmsMessage.TYPE_OUTBOX.toString())
-            }
-            FilterState.MessageType.ALL -> {}
-        }
-
-        filterState.simSubscriptionId?.let { subId ->
-            selections.add("${Telephony.Sms.SUBSCRIPTION_ID} = ?")
-            args.add(subId.toString())
-        }
-
-        filterState.contactId?.let {
-            selections.add("${Telephony.Sms.THREAD_ID} = ?")
-            args.add(it.toString())
-        }
-
-        val selection = if (selections.isEmpty()) null else selections.joinToString(" AND ")
-        val selectionArgs = if (args.isEmpty()) null else args.toTypedArray()
-
-        return Pair(selection, selectionArgs)
-    }
-
-    private fun getTodayStart(): Long {
-        val calendar = java.util.Calendar.getInstance()
-        calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
-        calendar.set(java.util.Calendar.MINUTE, 0)
-        calendar.set(java.util.Calendar.SECOND, 0)
-        calendar.set(java.util.Calendar.MILLISECOND, 0)
-        return calendar.timeInMillis
     }
 
     fun getSimCards(): List<SimCardInfo> {

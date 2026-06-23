@@ -2,15 +2,12 @@ package top.yuameshi.sms.cleaner.ui.screen
 
 import android.app.Activity
 import android.content.Context
-import android.content.ContextWrapper
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,46 +21,23 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Deselect
 import androidx.compose.material.icons.filled.Error
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Flip
-import androidx.compose.material.icons.filled.GetApp
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Publish
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.SelectAll
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sms
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DrawerValue
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.ModalNavigationDrawer
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TooltipBox
-import androidx.compose.material3.TooltipDefaults
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDrawerState
-import androidx.compose.material3.rememberTooltipState
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -76,29 +50,17 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import top.yuameshi.sms.cleaner.ui.component.DeleteConfirmDialog
 import top.yuameshi.sms.cleaner.ui.component.DrawerFilterPanel
-import top.yuameshi.sms.cleaner.ui.component.ExportDialog
-import top.yuameshi.sms.cleaner.ui.component.ImportDialog
 import top.yuameshi.sms.cleaner.ui.component.SmsListItem
 import top.yuameshi.sms.cleaner.data.model.SimCardInfo
 import top.yuameshi.sms.cleaner.util.DefaultSmsManager
+import top.yuameshi.sms.cleaner.util.findActivity
 import kotlinx.coroutines.launch
-
-fun Context.findActivity(): Activity? {
-    var context = this
-    while (context is ContextWrapper) {
-        if (context is Activity) return context
-        context = context.baseContext
-    }
-    return null
-}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -180,190 +142,42 @@ fun MainScreen(
         Scaffold(
             modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
             topBar = {
-                TopAppBar(
-                    modifier = Modifier
-                        .clickable {
-                            scope.launch {
-                                listState.animateScrollToItem(0)
-                            }
-                        },
-                    title = {
-                        Column {
-                            Text(
-                                text = if (selectionState.isMultiSelectMode) {
-                                    "已选择 ${selectionState.selectedCount} 条"
-                                } else {
-                                    "SMS Cleaner"
-                                },
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            if (!selectionState.isMultiSelectMode) {
-                                when (val state = uiState) {
-                                    is SmsUiState.Success -> {
-                                        Text(
-                                            text = if (state.isLoading) {
-                                                "正在加载..."
-                                            } else if (filterState.hasFilters()) {
-                                                "共 ${state.totalCount} 条 | 筛选 ${state.filteredCount} 条"
-                                            } else {
-                                                "共 ${state.totalCount} 条短信"
-                                            },
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    else -> {}
-                                }
-                            }
+                MainScreenTopBar(
+                    selectionState = selectionState,
+                    filterState = filterState,
+                    uiState = uiState,
+                    isDefaultSmsApp = isDefaultSmsApp,
+                    onFilterClick = { scope.launch { drawerState.open() } },
+                    onExportClick = { showExportDialog = true },
+                    onImportClick = {
+                        if (viewModel.requestImport()) {
+                            showImportDialog = true
                         }
                     },
+                    onRestoreDefaultSmsClick = {
+                        context.findActivity()?.let { activity ->
+                            DefaultSmsManager.openDefaultAppsSettings(activity)
+                        }
+                    },
+                    onExitMultiSelect = { viewModel.exitMultiSelectMode() },
                     scrollBehavior = scrollBehavior,
-                    navigationIcon = {
-                        if (selectionState.isMultiSelectMode) {
-                            IconButton(onClick = { viewModel.exitMultiSelectMode() }) {
-                                Icon(Icons.Default.Close, contentDescription = "取消")
-                            }
+                    modifier = Modifier.clickable {
+                        scope.launch {
+                            listState.animateScrollToItem(0)
                         }
-                    },
-                    actions = {
-                        if (!selectionState.isMultiSelectMode) {
-                            // 筛选按钮
-                            TooltipBox(
-                                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                                tooltip = { PlainTooltip { Text("筛选短信") } },
-                                state = rememberTooltipState()
-                            ) {
-                                IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                    Icon(
-                                        imageVector = Icons.Default.FilterList,
-                                        contentDescription = "筛选短信",
-                                        tint = if (filterState.hasFilters()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                            }
-                            // 更多选项菜单
-                            var menuExpanded by remember { mutableStateOf(false) }
-                            TooltipBox(
-                                positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
-                                tooltip = { PlainTooltip { Text("更多选项") } },
-                                state = rememberTooltipState()
-                            ) {
-                                IconButton(onClick = { menuExpanded = true }) {
-                                    Icon(Icons.Default.MoreVert, contentDescription = "更多选项")
-                                }
-                                DropdownMenu(
-                                    expanded = menuExpanded,
-                                    onDismissRequest = { menuExpanded = false }
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text("导出短信") },
-                                        onClick = {
-                                            menuExpanded = false
-                                            showExportDialog = true
-                                        },
-                                        leadingIcon = {
-                                            Icon(Icons.Default.GetApp, contentDescription = null)
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("导入短信") },
-                                        onClick = {
-                                            menuExpanded = false
-                                            if (viewModel.requestImport()) {
-                                                showImportDialog = true
-                                            }
-                                        },
-                                        leadingIcon = {
-                                            Icon(Icons.Default.Publish, contentDescription = null)
-                                        }
-                                    )
-                                    if (isDefaultSmsApp) {
-                                        DropdownMenuItem(
-                                            text = { Text("恢复默认短信App") },
-                                            onClick = {
-                                                menuExpanded = false
-                                                context.findActivity()?.let { activity ->
-                                                    DefaultSmsManager.openDefaultAppsSettings(activity)
-                                                }
-                                            },
-                                            leadingIcon = {
-                                                Icon(Icons.Default.Settings, contentDescription = null)
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = if (selectionState.isMultiSelectMode) {
-                            MaterialTheme.colorScheme.surfaceContainer
-                        } else {
-                            MaterialTheme.colorScheme.surface
-                        },
-                        scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
-                    )
+                    }
                 )
             },
          bottomBar = {
             if (selectionState.isMultiSelectMode) {
-                val hasSelection = selectionState.selectedCount > 0 || selectionState.isSelectAll
-                BottomAppBar {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        // Delete
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            IconButton(
-                                onClick = { viewModel.requestDeleteSelected() },
-                                enabled = hasSelection
-                            ) {
-                                Icon(Icons.Default.Delete, contentDescription = "删除")
-                            }
-                            Text("删除", style = MaterialTheme.typography.labelSmall)
-                        }
-
-                        // Select All
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            IconButton(onClick = { viewModel.selectAll() }) {
-                                Icon(Icons.Default.SelectAll, contentDescription = "全选")
-                            }
-                            Text("全选", style = MaterialTheme.typography.labelSmall)
-                        }
-
-                        // Invert Selection
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            IconButton(onClick = { viewModel.invertSelection() }) {
-                                Icon(Icons.Default.Flip, contentDescription = "反选")
-                            }
-                            Text("反选", style = MaterialTheme.typography.labelSmall)
-                        }
-
-                        // Deselect All
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            IconButton(
-                                onClick = { viewModel.deselectAll() },
-                                enabled = hasSelection
-                            ) {
-                                Icon(Icons.Default.Deselect, contentDescription = "取消全选")
-                            }
-                            Text("取消全选", style = MaterialTheme.typography.labelSmall)
-                        }
-
-                        // Export
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            IconButton(
-                                onClick = { showExportDialog = true },
-                                enabled = hasSelection
-                            ) {
-                                Icon(Icons.Default.GetApp, contentDescription = "导出")
-                            }
-                            Text("导出", style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-                }
+                MultiSelectBottomBar(
+                    hasSelection = selectionState.selectedCount > 0 || selectionState.isSelectAll,
+                    onDeleteClick = { viewModel.requestDeleteSelected() },
+                    onSelectAllClick = { viewModel.selectAll() },
+                    onInvertSelectionClick = { viewModel.invertSelection() },
+                    onDeselectAllClick = { viewModel.deselectAll() },
+                    onExportClick = { showExportDialog = true }
+                )
             }
         },
     ) { paddingValues ->
@@ -375,64 +189,11 @@ fun MainScreen(
         ) {
             // Content
             if (!hasPermissions) {
-                // Permission not granted state
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.Lock,
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "需要短信和通讯录权限",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = if (showPermissionPermanentlyDenied) {
-                                "权限被永久拒绝，请在设置中手动授予"
-                            } else {
-                                "请在系统设置中授予应用权限"
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(24.dp))
-                        Button(
-                            onClick = {
-                                if (showPermissionPermanentlyDenied) {
-                                    onOpenAppSettings()
-                                } else {
-                                    onRetryPermissionRequest()
-                                }
-                            }
-                        ) {
-                            Icon(
-                                imageVector = if (showPermissionPermanentlyDenied) {
-                                    Icons.Default.Settings
-                                } else {
-                                    Icons.Default.Refresh
-                                },
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = if (showPermissionPermanentlyDenied) {
-                                    "打开设置"
-                                } else {
-                                    "重试"
-                                }
-                            )
-                        }
-                    }
-                }
+                PermissionDeniedContent(
+                    showPermissionPermanentlyDenied = showPermissionPermanentlyDenied,
+                    onRetryPermissionRequest = onRetryPermissionRequest,
+                    onOpenAppSettings = onOpenAppSettings
+                )
             } else {
                 // Search Bar with debounce
                 var searchText by remember { mutableStateOf(filterState.keyword) }
@@ -613,112 +374,38 @@ fun MainScreen(
         }
     }
 
-    // Delete confirmation dialog
-    if (showDeleteConfirmDialog) {
-        LaunchedEffect(Unit) {
-            viewModel.loadPreviewMessages()
-        }
-        DeleteConfirmDialog(
-            count = viewModel.getDeleteCount(),
-            previewMessages = previewMessages,
-            onConfirm = { viewModel.confirmDelete() },
-            onDismiss = { viewModel.cancelDelete() }
-        )
-    }
-
-    // Export dialog
-    if (showExportDialog) {
-        ExportDialog(
-            filteredCount = (uiState as? SmsUiState.Success)?.filteredCount ?: 0,
-            totalCount = (uiState as? SmsUiState.Success)?.totalCount ?: 0,
-            hasFilters = filterState.hasFilters(),
-            onExport = { exportAll, uri ->
-                viewModel.exportMessages(exportAll, uri)
-                showExportDialog = false
-            },
-            onDismiss = { showExportDialog = false }
-        )
-    }
-
-    // Import dialog
-    if (showImportDialog) {
-        ImportDialog(
-            onImport = { uri ->
-                viewModel.importMessages(uri)
-                showImportDialog = false
-            },
-            onDismiss = { showImportDialog = false }
-        )
-    }
-
-    // Default SMS app dialog
-    if (showDefaultSmsDialog) {
-        AlertDialog(
-            onDismissRequest = { viewModel.dismissDefaultSmsDialog() },
-            title = { Text("需要设置默认短信App") },
-            text = { Text("为了删除或导入短信，需要将本App设为默认短信App。操作完成后可随时恢复原来的短信App。") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.dismissDefaultSmsDialog()
-                    context.findActivity()?.let { activity ->
-                        DefaultSmsManager.requestDefaultSmsRole(activity, defaultSmsLauncher)
-                    }
-                }) {
-                    Text("前往设置")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.dismissDefaultSmsDialog() }) {
-                    Text("取消")
-                }
+    MainScreenDialogs(
+        showDeleteConfirmDialog = showDeleteConfirmDialog,
+        previewMessages = previewMessages,
+        deleteCount = viewModel.getDeleteCount(),
+        onLoadPreviewMessages = { viewModel.loadPreviewMessages() },
+        onConfirmDelete = { viewModel.confirmDelete() },
+        onCancelDelete = { viewModel.cancelDelete() },
+        showExportDialog = showExportDialog,
+        filteredCount = (uiState as? SmsUiState.Success)?.filteredCount ?: 0,
+        totalCount = (uiState as? SmsUiState.Success)?.totalCount ?: 0,
+        hasFilters = filterState.hasFilters(),
+        onExport = { exportAll, uri ->
+            viewModel.exportMessages(exportAll, uri)
+            showExportDialog = false
+        },
+        onDismissExport = { showExportDialog = false },
+        showImportDialog = showImportDialog,
+        onImport = { uri ->
+            viewModel.importMessages(uri)
+            showImportDialog = false
+        },
+        onDismissImport = { showImportDialog = false },
+        showDefaultSmsDialog = showDefaultSmsDialog,
+        onDismissDefaultSmsDialog = { viewModel.dismissDefaultSmsDialog() },
+        onConfirmDefaultSms = {
+            viewModel.dismissDefaultSmsDialog()
+            context.findActivity()?.let { activity ->
+                DefaultSmsManager.requestDefaultSmsRole(activity, defaultSmsLauncher)
             }
-        )
-    }
-
-    // Operation state dialog
-    when (val state = operationState) {
-        is OperationState.Progress -> {
-            AlertDialog(
-                onDismissRequest = {},
-                title = { Text("处理中...") },
-                text = {
-                    Column {
-                        LinearProgressIndicator(
-                            progress = if (state.total > 0) state.current.toFloat() / state.total else 0f,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("已处理 ${state.current}/${state.total} 条")
-                    }
-                },
-                confirmButton = {}
-            )
-        }
-        is OperationState.Success -> {
-            AlertDialog(
-                onDismissRequest = { viewModel.resetOperationState() },
-                title = { Text("完成") },
-                text = { Text(state.message) },
-                confirmButton = {
-                    TextButton(onClick = { viewModel.resetOperationState() }) {
-                        Text("确定")
-                    }
-                }
-            )
-        }
-        is OperationState.Error -> {
-            AlertDialog(
-                onDismissRequest = { viewModel.resetOperationState() },
-                title = { Text("错误") },
-                text = { Text(state.message) },
-                confirmButton = {
-                    TextButton(onClick = { viewModel.resetOperationState() }) {
-                        Text("确定")
-                    }
-                }
-            )
-        }
-        else -> {}
-    }
+        },
+        operationState = operationState,
+        onResetOperationState = { viewModel.resetOperationState() }
+    )
     }
 }
