@@ -14,6 +14,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,6 +60,7 @@ fun MainScreen(
     val simCards by viewModel.simCards.collectAsStateWithLifecycle()
     val showDeleteConfirmDialog by viewModel.showDeleteConfirmDialog.collectAsStateWithLifecycle()
     val showDefaultSmsDialog by viewModel.showDefaultSmsDialog.collectAsStateWithLifecycle()
+    val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
 
     var showExportDialog by remember { mutableStateOf(false) }
     var showImportDialog by remember { mutableStateOf(false) }
@@ -367,104 +371,121 @@ fun MainScreen(
                     }
                 }
                 is SmsUiState.Success -> {
-                    if (state.isLoading) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator()
+                    val pullRefreshState = rememberPullToRefreshState()
+                    PullToRefreshBox(
+                        isRefreshing = state.isLoading || isRefreshing,
+                        onRefresh = { viewModel.refresh() },
+                        modifier = Modifier.fillMaxSize(),
+                        state = pullRefreshState,
+                        indicator = {
+                            PullToRefreshDefaults.Indicator(
+                                modifier = Modifier.align(Alignment.TopCenter),
+                                isRefreshing = state.isLoading || isRefreshing,
+                                state = pullRefreshState,
+                                color = MaterialTheme.colorScheme.primary,
+                                containerColor = MaterialTheme.colorScheme.surfaceContainer,
+                            )
                         }
-                    } else if (state.messages.isEmpty()) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.Default.Sms,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(64.dp),
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text(
-                                    text = "没有找到短信",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
+                    ) {
+                        if (state.isLoading && state.messages.isEmpty()) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator()
                             }
-                        }
-                    } else {
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            // Search box as first item
-                            item(key = "search") {
-                                Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                                    OutlinedTextField(
-                                        value = searchText,
-                                        onValueChange = { keyword ->
-                                            searchText = keyword
-                                        },
-                                        label = { Text("搜索短信") },
-                                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                                        trailingIcon = {
-                                            if (searchText.isNotEmpty()) {
-                                                IconButton(onClick = {
-                                                    searchText = ""
-                                                    viewModel.updateFilter(filterState.copy(keyword = ""))
-                                                }) {
-                                                    Icon(Icons.Default.Clear, contentDescription = "清空")
-                                                }
-                                            }
-                                        },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        singleLine = true
+                        } else if (state.messages.isEmpty()) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(
+                                        imageVector = Icons.Default.Sms,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(64.dp),
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
-                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text(
+                                        text = "没有找到短信",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
                             }
-
-                            items(
-                                items = state.messages,
-                                key = { it.id }
-                            ) { message ->
-                                SmsListItem(
-                                    message = message,
-                                    isSelected = selectionState.isSelected(message.id),
-                                    isMultiSelectMode = selectionState.isMultiSelectMode,
-                                    keyword = filterState.keyword,
-                                    simDisplayName = viewModel.getSimDisplayName(message.subId),
-                                    onItemClick = {
-                                        if (selectionState.isMultiSelectMode) {
-                                            viewModel.toggleSelection(message.id)
-                                        }
-                                    },
-                                    onLongClick = {
-                                        if (!selectionState.isMultiSelectMode) {
-                                            viewModel.enterMultiSelectMode(message.id)
-                                        }
-                                    },
-                                    onDeleteClick = {
-                                        viewModel.requestDelete(message.id)
+                        } else {
+                            LazyColumn(
+                                state = listState,
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                // Search box as first item
+                                item(key = "search") {
+                                    Column(modifier = Modifier.padding(horizontal = 16.dp)) {
+                                        OutlinedTextField(
+                                            value = searchText,
+                                            onValueChange = { keyword ->
+                                                searchText = keyword
+                                            },
+                                            label = { Text("搜索短信") },
+                                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                                            trailingIcon = {
+                                                if (searchText.isNotEmpty()) {
+                                                    IconButton(onClick = {
+                                                        searchText = ""
+                                                        viewModel.updateFilter(filterState.copy(keyword = ""))
+                                                    }) {
+                                                        Icon(Icons.Default.Clear, contentDescription = "清空")
+                                                    }
+                                                }
+                                            },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            singleLine = true
+                                        )
+                                        Spacer(modifier = Modifier.height(12.dp))
                                     }
-                                )
-                            }
+                                }
 
-                            // Load more trigger
-                            if (state.hasMore) {
-                                item {
-                                    LaunchedEffect(Unit) {
-                                        viewModel.loadMore()
-                                    }
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(16.dp),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        CircularProgressIndicator()
+                                items(
+                                    items = state.messages,
+                                    key = { it.id }
+                                ) { message ->
+                                    SmsListItem(
+                                        message = message,
+                                        isSelected = selectionState.isSelected(message.id),
+                                        isMultiSelectMode = selectionState.isMultiSelectMode,
+                                        keyword = filterState.keyword,
+                                        simDisplayName = viewModel.getSimDisplayName(message.subId),
+                                        onItemClick = {
+                                            if (selectionState.isMultiSelectMode) {
+                                                viewModel.toggleSelection(message.id)
+                                            }
+                                        },
+                                        onLongClick = {
+                                            if (!selectionState.isMultiSelectMode) {
+                                                viewModel.enterMultiSelectMode(message.id)
+                                            }
+                                        },
+                                        onDeleteClick = {
+                                            viewModel.requestDelete(message.id)
+                                        }
+                                    )
+                                }
+
+                                // Load more trigger
+                                if (state.hasMore) {
+                                    item {
+                                        LaunchedEffect(Unit) {
+                                            viewModel.loadMore()
+                                        }
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(16.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            CircularProgressIndicator()
+                                        }
                                     }
                                 }
                             }

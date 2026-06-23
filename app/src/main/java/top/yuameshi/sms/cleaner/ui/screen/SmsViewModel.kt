@@ -91,6 +91,10 @@ class SmsViewModel @Inject constructor(
     private val _showDefaultSmsDialog = MutableStateFlow(false)
     val showDefaultSmsDialog: StateFlow<Boolean> = _showDefaultSmsDialog.asStateFlow()
 
+    // 下拉刷新状态
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+
     // 待删除的消息ID（单条删除时使用）
     private var pendingDeleteMessageId: Long? = null
 
@@ -170,6 +174,39 @@ class SmsViewModel @Inject constructor(
                 )
             } catch (e: Exception) {
                 _uiState.value = SmsUiState.Error(e.message ?: "加载失败")
+            }
+        }
+    }
+
+    /**
+     * 下拉刷新：重新加载短信列表
+     */
+    fun refresh() {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            try {
+                currentPage = 0
+                allMessages.clear()
+
+                val filteredCountDeferred = async { getSmsUseCase.getTotalCount(_filterState.value) }
+                val messagesDeferred = async { getSmsUseCase(_filterState.value, currentPage) }
+
+                totalCount = getSmsUseCase.getTotalCount(FilterState())
+                filteredCount = filteredCountDeferred.await()
+                val messages = messagesDeferred.await()
+                allMessages.addAll(messages)
+
+                _uiState.value = SmsUiState.Success(
+                    messages = allMessages.toList(),
+                    totalCount = totalCount,
+                    filteredCount = filteredCount,
+                    hasMore = allMessages.size < filteredCount,
+                    isLoading = false
+                )
+            } catch (e: Exception) {
+                _uiState.value = SmsUiState.Error(e.message ?: "刷新失败")
+            } finally {
+                _isRefreshing.value = false
             }
         }
     }
