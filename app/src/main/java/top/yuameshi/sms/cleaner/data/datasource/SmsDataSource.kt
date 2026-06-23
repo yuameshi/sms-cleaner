@@ -151,9 +151,16 @@ class SmsDataSource @Inject constructor(
             put(Telephony.Sms.SUBSCRIPTION_ID, subId)
         }
 
-        val result = contentResolver.insert(Telephony.Sms.CONTENT_URI, values)
-        invalidateTotalCountCache()
-        result
+        try {
+            android.util.Log.d("SmsDataSource", "insertMessage: uri=${Telephony.Sms.CONTENT_URI}, values=$values")
+            val result = contentResolver.insert(Telephony.Sms.CONTENT_URI, values)
+            android.util.Log.d("SmsDataSource", "insertMessage result: $result")
+            invalidateTotalCountCache()
+            result
+        } catch (e: Exception) {
+            android.util.Log.e("SmsDataSource", "insertMessage exception: ${e.message}", e)
+            null
+        }
     }
 
     suspend fun checkDuplicate(address: String, body: String, date: Long): Boolean = withContext(Dispatchers.IO) {

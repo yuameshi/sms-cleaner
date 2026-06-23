@@ -33,9 +33,9 @@ class ExportSmsUseCase @Inject constructor(
             // Write BOM for UTF-8
             outputStream.write(byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()))
 
-            // Write header
+            // Write header (RFC 4180: CRLF line endings)
             val header = "ID,号码,内容,时间,类型,已读状态,锁定状态,SIM卡,发送状态"
-            outputStream.write("$header\n".toByteArray(Charsets.UTF_8))
+            outputStream.write("$header\r\n".toByteArray(Charsets.UTF_8))
 
             var exported = 0
             var page = 0
@@ -52,7 +52,7 @@ class ExportSmsUseCase @Inject constructor(
 
                 messages.forEach { message ->
                     val line = formatCsvLine(message)
-                    outputStream.write("$line\n".toByteArray(Charsets.UTF_8))
+                    outputStream.write("$line\r\n".toByteArray(Charsets.UTF_8))
                     exported++
                     onProgress(exported, totalCount)
                 }
@@ -97,7 +97,8 @@ class ExportSmsUseCase @Inject constructor(
     }
 
     private fun escapeCsvField(field: String): String {
-        return if (field.contains(",") || field.contains("\"") || field.contains("\n")) {
+        // RFC 4180: Fields containing line breaks (CRLF), double quotes, and commas should be enclosed in double-quotes
+        return if (field.contains(",") || field.contains("\"") || field.contains("\n") || field.contains("\r")) {
             "\"${field.replace("\"", "\"\"")}\""
         } else {
             field
