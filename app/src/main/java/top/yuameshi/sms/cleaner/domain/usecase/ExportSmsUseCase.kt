@@ -1,7 +1,5 @@
 package top.yuameshi.sms.cleaner.domain.usecase
 
-import android.content.Context
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import top.yuameshi.sms.cleaner.data.model.FilterState
@@ -14,7 +12,6 @@ import java.util.Locale
 import javax.inject.Inject
 
 class ExportSmsUseCase @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val smsRepository: SmsRepository
 ) {
     suspend operator fun invoke(

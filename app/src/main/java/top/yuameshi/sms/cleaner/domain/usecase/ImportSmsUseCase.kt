@@ -2,12 +2,11 @@ package top.yuameshi.sms.cleaner.domain.usecase
 
 import android.content.Context
 import android.net.Uri
-import android.telephony.SubscriptionManager
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import top.yuameshi.sms.cleaner.data.manager.SmsOperationManager
 import top.yuameshi.sms.cleaner.data.model.SmsMessage
+import top.yuameshi.sms.cleaner.data.repository.SmsRepository
 import top.yuameshi.sms.cleaner.util.CsvParser
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -17,7 +16,7 @@ import javax.inject.Inject
 
 class ImportSmsUseCase @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val smsOperationManager: SmsOperationManager
+    private val smsRepository: SmsRepository
 ) {
     suspend operator fun invoke(
         uri: Uri,
@@ -63,13 +62,13 @@ class ImportSmsUseCase @Inject constructor(
                             val read = readStatus == "已读"
 
                             // Check for duplicate (same address, body, and date)
-                            val isDuplicate = smsOperationManager.checkDuplicate(address, body, date)
+                            val isDuplicate = smsRepository.checkDuplicate(address, body, date)
                             if (isDuplicate) {
                                 skipped++
                             } else {
                                 // Use default subscription ID (first active SIM)
                                 val defaultSubId = getDefaultSubscriptionId()
-                                smsOperationManager.insertMessage(address, body, date, type, read, defaultSubId)
+                                smsRepository.insertMessage(address, body, date, type, read, defaultSubId)
                                 imported++
                             }
 
@@ -117,9 +116,8 @@ class ImportSmsUseCase @Inject constructor(
      */
     private fun getDefaultSubscriptionId(): Int {
         return try {
-            val subscriptionManager = context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as SubscriptionManager
-            val subscriptions = subscriptionManager.activeSubscriptionInfoList
-            subscriptions?.firstOrNull()?.subscriptionId ?: 0
+            val simCards = smsRepository.getSimCards()
+            simCards.firstOrNull()?.subscriptionId ?: 0
         } catch (e: Exception) {
             0
         }

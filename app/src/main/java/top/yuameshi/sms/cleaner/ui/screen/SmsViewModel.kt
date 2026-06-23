@@ -11,14 +11,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
-import top.yuameshi.sms.cleaner.data.manager.SmsOperationManager
 import top.yuameshi.sms.cleaner.data.model.FilterState
 import top.yuameshi.sms.cleaner.data.model.SelectionState
 import top.yuameshi.sms.cleaner.data.model.SimCardInfo
 import top.yuameshi.sms.cleaner.data.model.SmsMessage
+import top.yuameshi.sms.cleaner.domain.usecase.CheckDefaultSmsUseCase
+import top.yuameshi.sms.cleaner.domain.usecase.DeleteSmsUseCase
+import top.yuameshi.sms.cleaner.domain.usecase.DeleteType
 import top.yuameshi.sms.cleaner.domain.usecase.ExportSmsUseCase
 import top.yuameshi.sms.cleaner.domain.usecase.GetSmsUseCase
 import top.yuameshi.sms.cleaner.domain.usecase.ImportSmsUseCase
+import top.yuameshi.sms.cleaner.domain.usecase.LoadSimCardsUseCase
 import top.yuameshi.sms.cleaner.data.repository.FilterHistoryRepository
 import top.yuameshi.sms.cleaner.util.PermissionUtils
 import javax.inject.Inject
@@ -27,10 +30,12 @@ import javax.inject.Inject
 class SmsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val getSmsUseCase: GetSmsUseCase,
+    private val deleteSmsUseCase: DeleteSmsUseCase,
     private val exportSmsUseCase: ExportSmsUseCase,
     private val importSmsUseCase: ImportSmsUseCase,
+    private val checkDefaultSmsUseCase: CheckDefaultSmsUseCase,
     private val filterHistoryRepository: FilterHistoryRepository,
-    private val smsOperationManager: SmsOperationManager
+    private val loadSimCardsUseCase: LoadSimCardsUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<SmsUiState>(SmsUiState.Loading)
@@ -92,7 +97,7 @@ class SmsViewModel @Inject constructor(
 
     fun checkPermissionsAndDefaultSms() {
         _hasPermissions.value = PermissionUtils.hasAllPermissions(context)
-        _isDefaultSmsApp.value = !smsOperationManager.needsDefaultSmsApp()
+        _isDefaultSmsApp.value = checkDefaultSmsUseCase()
     }
 
     private fun loadFilterHistory() {
@@ -100,11 +105,10 @@ class SmsViewModel @Inject constructor(
     }
 
     fun loadSimCards() {
-        val cards = smsOperationManager.getSimCards()
-        _simCards.value = cards
+        val result = loadSimCardsUseCase()
+        _simCards.value = result.simCards
         // 判断短名称是否唯一：如果有重复的短名称，则使用长名称
-        val shortNames = cards.map { it.getShortName() }
-        useShortSimName = shortNames.distinct().size == shortNames.size
+        useShortSimName = result.useShortSimName
     }
 
     fun getSimDisplayName(subscriptionId: Int): String {
@@ -247,7 +251,7 @@ class SmsViewModel @Inject constructor(
      */
     fun requestDelete(messageId: Long) {
         // 检查是否需要设置默认短信App
-        if (smsOperationManager.needsDefaultSmsApp()) {
+        if (!checkDefaultSmsUseCase()) {
             _showDefaultSmsDialog.value = true
             return
         }
@@ -262,7 +266,7 @@ class SmsViewModel @Inject constructor(
      */
     fun requestDeleteSelected() {
         // 检查是否需要设置默认短信App
-        if (smsOperationManager.needsDefaultSmsApp()) {
+        if (!checkDefaultSmsUseCase()) {
             _showDefaultSmsDialog.value = true
             return
         }
@@ -277,32 +281,45 @@ class SmsViewModel @Inject constructor(
         _showDeleteConfirmDialog.value = false
         viewModelScope.launch {
             _operationState.value = OperationState.Progress(0, 0)
-            try {
-                val deletedCount = if (pendingDeleteMessageId != null) {
-                    // 单条删除
-                    smsOperationManager.deleteMessages(listOf(pendingDeleteMessageId!!))
-                } else if (selectionState.value.isSelectAll) {
-                    // 全选删除
-                    smsOperationManager.deleteMessagesByFilter(_filterState.value)
-                } else {
-                    // 多选删除
-                    smsOperationManager.deleteMessages(selectionState.value.selectedIds.toList())
-                }
-
-                _operationState.value = OperationState.Success("成功删除 $deletedCount 条短信")
-                exitMultiSelectMode()
-                pendingDeleteMessageId = null
-                loadMessages()
-            } catch (e: IllegalStateException) {
-                // 不是默认短信App，显示设置对话框
-                _operationState.value = OperationState.Idle
-                _showDefaultSmsDialog.value = true
-                _isDefaultSmsApp.value = false
-                pendingDeleteMessageId = null
-            } catch (e: Exception) {
-                _operationState.value = OperationState.Error(e.message ?: "删除失败")
-                pendingDeleteMessageId = null
+            val deleteResult = if (pendingDeleteMessageId != null) {
+                // 单条删除
+                deleteSmsUseCase(
+                    deleteType = DeleteType.Single,
+                    ids = listOf(pendingDeleteMessageId!!)
+                )
+            } else if (selectionState.value.isSelectAll) {
+                // 全选删除
+                deleteSmsUseCase(
+                    deleteType = DeleteType.AllByFilter,
+                    filterState = _filterState.value
+                )
+            } else {
+                // 多选删除
+                deleteSmsUseCase(
+                    deleteType = DeleteType.Multiple,
+                    ids = selectionState.value.selectedIds.toList()
+                )
             }
+
+            deleteResult.fold(
+                onSuccess = { deletedCount ->
+                    _operationState.value = OperationState.Success("成功删除 $deletedCount 条短信")
+                    exitMultiSelectMode()
+                    pendingDeleteMessageId = null
+                    loadMessages()
+                },
+                onFailure = { e ->
+                    if (e is IllegalStateException) {
+                        // 不是默认短信App，显示设置对话框
+                        _operationState.value = OperationState.Idle
+                        _showDefaultSmsDialog.value = true
+                        _isDefaultSmsApp.value = false
+                    } else {
+                        _operationState.value = OperationState.Error(e.message ?: "删除失败")
+                    }
+                    pendingDeleteMessageId = null
+                }
+            )
         }
     }
 
@@ -412,7 +429,7 @@ class SmsViewModel @Inject constructor(
      * @return true如果可以导入，false如果需要先设置默认短信App
      */
     fun requestImport(): Boolean {
-        if (smsOperationManager.needsDefaultSmsApp()) {
+        if (!checkDefaultSmsUseCase()) {
             _showDefaultSmsDialog.value = true
             return false
         }
