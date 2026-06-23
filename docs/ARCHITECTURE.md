@@ -103,12 +103,24 @@ graph TB
 
 **组件**：
 - `SmsViewModel` - 主视图模型，管理所有 UI 状态
+- `SelectionManager` - 选择状态管理器（内部 StateFlow，ViewModel 观察并镜像到统一状态）
 
 **状态管理**：
-- `SmsUiState` - UI 状态（Loading, Success, Error）
-- `OperationState` - 操作状态（Idle, Progress, Success, Error）
-- `FilterState` - 筛选状态
-- `SelectionState` - 选择状态
+- `SmsScreenUiState` - 统一 UI 状态数据类，包含 12 个字段：
+  - `smsState: SmsUiState` - 短信列表状态（Loading, Success, Error）
+  - `filterState: FilterState` - 筛选条件
+  - `selectionState: SelectionState` - 选择状态
+  - `operationState: OperationState` - 操作状态（Idle, Progress, Success, Error）
+  - `isDefaultSmsApp: Boolean` - 是否为默认短信 App
+  - `hasPermissions: Boolean` - 是否已授权
+  - `filterHistory: List<String>` - 筛选历史
+  - `simCards: List<SimCardInfo>` - SIM 卡列表
+  - `previewMessages: List<SmsMessage>` - 预览消息
+  - `isRefreshing: Boolean` - 是否正在刷新
+  - `showDeleteConfirmDialog: Boolean` - 是否显示删除确认对话框
+  - `showDefaultSmsDialog: Boolean` - 是否显示默认短信 App 对话框
+- 替代了原来分散的 12 个独立 `StateFlow`
+- MainScreen 从 10 个 `collectAsStateWithLifecycle()` 调用减少到 1 个
 
 ### Domain Layer (领域层)
 
@@ -116,14 +128,18 @@ graph TB
 
 **用例**：
 - `GetSmsUseCase` - 获取短信（分页）
-- `FilterSmsUseCase` - 构建筛选状态，验证正则
+- `DeleteSmsUseCase` - 删除短信（单条/批量/按条件）
 - `ExportSmsUseCase` - 导出短信为 CSV
 - `ImportSmsUseCase` - 从 CSV 导入短信
+- `CheckDefaultSmsUseCase` - 检查当前 App 是否为默认短信 App
+- `CheckPermissionsUseCase` - 检查权限状态
+- `LoadSimCardsUseCase` - 加载 SIM 卡信息并判断短名称唯一性
 
 **特点**：
 - 纯 Kotlin 代码，不依赖 Android 框架
 - 每个用例单一职责
 - 通过构造函数注入依赖
+- `SmsViewModel` 零 Android 框架依赖，Context 已下沉到 UseCase 层
 
 ### Data Layer (数据层)
 
@@ -230,20 +246,31 @@ sequenceDiagram
 graph LR
     Context[Context] --> SmsDataSource
     Context --> FilterHistoryRepository
+    Context --> CheckDefaultSmsUseCase
+    Context --> CheckPermissionsUseCase
+    Context --> ExportSmsUseCase
     
     SmsDataSource --> SmsRepository
     SmsRepository --> SmsOperationManager
     SmsRepository --> GetSmsUseCase
+    SmsRepository --> DeleteSmsUseCase
     SmsRepository --> ExportSmsUseCase
+    SmsRepository --> ImportSmsUseCase
+    SmsRepository --> LoadSimCardsUseCase
     
-    SmsOperationManager --> SmsViewModel
     SmsOperationManager --> ImportSmsUseCase
     
     GetSmsUseCase --> SmsViewModel
-    FilterSmsUseCase --> SmsViewModel
+    DeleteSmsUseCase --> SmsViewModel
     ExportSmsUseCase --> SmsViewModel
     ImportSmsUseCase --> SmsViewModel
+    CheckDefaultSmsUseCase --> SmsViewModel
+    CheckPermissionsUseCase --> SmsViewModel
+    LoadSimCardsUseCase --> SmsViewModel
     FilterHistoryRepository --> SmsViewModel
+    
+    DefaultSmsManager --> CheckDefaultSmsUseCase
+    PermissionUtils --> CheckPermissionsUseCase
 ```
 
 ## 关键设计决策
@@ -314,3 +341,40 @@ graph LR
 - CSV 格式简单，Excel 可直接打开
 - UTF-8 with BOM 确保中文不乱码
 - 可读时间比时间戳更便于人工查看
+
+### 5. MVVM 架构合规性重构
+
+**决策**：严格遵循 MVVM + Clean Architecture 原则，消除架构违规
+
+**重构内容**：
+
+1. **UseCase 提取**：
+   - 提取 `CheckDefaultSmsUseCase` 封装 `DefaultSmsManager.isDefaultSmsApp()` 调用
+   - 提取 `CheckPermissionsUseCase` 封装 `PermissionUtils.hasAllPermissions()` 调用
+   - 提取 `LoadSimCardsUseCase` 封装 SIM 卡加载和短名称唯一性判断逻辑
+   - 提取 `DeleteSmsUseCase` 统一删除逻辑（单条/批量/按条件）
+
+2. **Context 依赖下沉**：
+   - `SmsViewModel` 不再依赖 `@ApplicationContext context: Context`
+   - `ExportSmsUseCase` 改为接受 `Uri` 参数，内部通过 Context 打开输出流
+   - `CheckPermissionsUseCase` 和 `CheckDefaultSmsUseCase` 内部持有 Context
+
+3. **状态流整合**：
+   - 创建 `SmsScreenUiState` 数据类，整合 12 个独立 StateFlow
+   - 使用 `MutableStateFlow.update {}` 实现线程安全的原子更新
+   - MainScreen 从 10 个 `collectAsStateWithLifecycle()` 调用减少到 1 个
+
+4. **Repository 接口化**：
+   - 创建 `SmsRepository` 接口和 `SmsRepositoryImpl` 实现
+   - 创建 `FilterHistoryRepository` 接口和 `FilterHistoryRepositoryImpl` 实现
+   - 通过 Hilt `@Binds` 实现依赖反转
+
+5. **SmsDataSource 封装**：
+   - 提取 `SmsSelectionBuilder` 独立构建 SQL 筛选条件
+   - `SmsDataSource` 封装所有 ContentResolver 操作
+
+**理由**：
+- ViewModel 零 Android 框架依赖，可独立单元测试
+- 单一职责原则：每个 UseCase 只负责一个业务操作
+- 依赖反转：ViewModel 依赖接口而非实现
+- 状态管理简化：统一状态对象减少状态同步复杂度
