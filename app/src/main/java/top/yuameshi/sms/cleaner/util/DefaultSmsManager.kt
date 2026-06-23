@@ -10,14 +10,8 @@ import android.provider.Telephony
 import androidx.activity.result.ActivityResultLauncher
 
 object DefaultSmsManager {
-    private const val REQUEST_CODE_DEFAULT_SMS = 1001
-
     fun isDefaultSmsApp(context: Context): Boolean {
         return PermissionUtils.isDefaultSmsApp(context)
-    }
-
-    fun getDefaultSmsPackage(context: Context): String? {
-        return PermissionUtils.getDefaultSmsPackage(context)
     }
 
     fun requestDefaultSmsRole(activity: Activity, launcher: ActivityResultLauncher<Intent>) {
@@ -39,18 +33,5 @@ object DefaultSmsManager {
     fun openDefaultAppsSettings(activity: Activity) {
         val intent = Intent(Settings.ACTION_MANAGE_DEFAULT_APPS_SETTINGS)
         activity.startActivity(intent)
-    }
-
-    fun handleDefaultSmsResult(
-        context: Context,
-        originalDefaultSmsApp: String?,
-        onSuccess: () -> Unit,
-        onFail: () -> Unit
-    ) {
-        if (isDefaultSmsApp(context)) {
-            onSuccess()
-        } else {
-            onFail()
-        }
     }
 }

@@ -20,20 +20,6 @@ object PermissionUtils {
         }
     }
 
-    fun hasSmsPermission(context: Context): Boolean {
-        return ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.READ_SMS
-        ) == PackageManager.PERMISSION_GRANTED
-    }
-
-    fun hasContactsPermission(context: Context): Boolean {
-        return ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.READ_CONTACTS
-        ) == PackageManager.PERMISSION_GRANTED
-    }
-
     fun isDefaultSmsApp(context: Context): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             // Android 10+ 使用 RoleManager
@@ -45,14 +31,6 @@ object PermissionUtils {
             defaultSmsPackage == context.packageName
         } else {
             true
-        }
-    }
-
-    fun getDefaultSmsPackage(context: Context): String? {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            Telephony.Sms.getDefaultSmsPackage(context)
-        } else {
-            null
         }
     }
 }

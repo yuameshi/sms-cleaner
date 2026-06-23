@@ -40,8 +40,7 @@ class SmsDataSource @Inject constructor(
                 Telephony.Sms.TYPE,
                 Telephony.Sms.READ,
                 Telephony.Sms.LOCKED,
-                Telephony.Sms.SUBSCRIPTION_ID,
-                Telephony.Sms.THREAD_ID
+                Telephony.Sms.SUBSCRIPTION_ID
             ),
             selection,
             selectionArgs,
@@ -59,7 +58,6 @@ class SmsDataSource @Inject constructor(
                 val read = it.getInt(it.getColumnIndexOrThrow(Telephony.Sms.READ)) == 1
                 val locked = it.getInt(it.getColumnIndexOrThrow(Telephony.Sms.LOCKED)) == 1
                 val subId = it.getInt(it.getColumnIndexOrThrow(Telephony.Sms.SUBSCRIPTION_ID))
-                val threadId = it.getLong(it.getColumnIndexOrThrow(Telephony.Sms.THREAD_ID))
 
                 val contactName = getContactName(address)
 
@@ -73,7 +71,6 @@ class SmsDataSource @Inject constructor(
                         read = read,
                         locked = locked,
                         subId = subId,
-                        threadId = threadId,
                         contactName = contactName
                     )
                 )

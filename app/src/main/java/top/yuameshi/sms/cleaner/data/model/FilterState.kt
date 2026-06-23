@@ -10,8 +10,7 @@ data class FilterState(
     val lockStatus: LockStatus = LockStatus.ALL,
     val messageType: MessageType = MessageType.ALL,
     val simId: SimId = SimId.ALL,
-    val contactId: Long? = null,
-    val contactName: String? = null
+    val contactId: Long? = null
 ) {
     enum class DateRange {
         ALL, TODAY, LAST_7_DAYS, LAST_30_DAYS, LAST_90_DAYS, CUSTOM
@@ -42,18 +41,5 @@ data class FilterState(
                 messageType != MessageType.ALL ||
                 simId != SimId.ALL ||
                 contactId != null
-    }
-
-    fun toQueryString(): String {
-        val parts = mutableListOf<String>()
-        if (keyword.isNotEmpty()) parts.add("关键词=$keyword")
-        if (number.isNotEmpty()) parts.add("号码=$number")
-        if (dateRange != DateRange.ALL) parts.add("日期=${dateRange.name}")
-        if (readStatus != ReadStatus.ALL) parts.add("已读=${readStatus.name}")
-        if (lockStatus != LockStatus.ALL) parts.add("锁定=${lockStatus.name}")
-        if (messageType != MessageType.ALL) parts.add("类型=${messageType.name}")
-        if (simId != SimId.ALL) parts.add("SIM=${simId.name}")
-        if (contactName != null) parts.add("联系人=$contactName")
-        return parts.joinToString(", ")
     }
 }

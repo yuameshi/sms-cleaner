@@ -16,7 +16,6 @@ import top.yuameshi.sms.cleaner.data.model.FilterState
 import top.yuameshi.sms.cleaner.data.model.SelectionState
 import top.yuameshi.sms.cleaner.data.model.SmsMessage
 import top.yuameshi.sms.cleaner.domain.usecase.ExportSmsUseCase
-import top.yuameshi.sms.cleaner.domain.usecase.FilterSmsUseCase
 import top.yuameshi.sms.cleaner.domain.usecase.GetSmsUseCase
 import top.yuameshi.sms.cleaner.domain.usecase.ImportSmsUseCase
 import top.yuameshi.sms.cleaner.data.repository.FilterHistoryRepository
@@ -46,7 +45,6 @@ sealed class OperationState {
 class SmsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val getSmsUseCase: GetSmsUseCase,
-    private val filterSmsUseCase: FilterSmsUseCase,
     private val exportSmsUseCase: ExportSmsUseCase,
     private val importSmsUseCase: ImportSmsUseCase,
     private val filterHistoryRepository: FilterHistoryRepository,

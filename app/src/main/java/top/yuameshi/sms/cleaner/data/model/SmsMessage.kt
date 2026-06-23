@@ -9,7 +9,6 @@ data class SmsMessage(
     val read: Boolean,
     val locked: Boolean,
     val subId: Int,
-    val threadId: Long,
     val contactName: String? = null
 ) {
     companion object {
