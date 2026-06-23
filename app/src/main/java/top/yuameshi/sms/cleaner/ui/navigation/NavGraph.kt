@@ -7,7 +7,12 @@ import androidx.navigation.compose.rememberNavController
 import top.yuameshi.sms.cleaner.ui.screen.MainScreen
 
 @Composable
-fun SmsCleanerApp(hasPermissions: Boolean = false) {
+fun SmsCleanerApp(
+    hasPermissions: Boolean = false,
+    showPermissionPermanentlyDenied: Boolean = false,
+    onRetryPermissionRequest: () -> Unit = {},
+    onOpenAppSettings: () -> Unit = {}
+) {
     val navController = rememberNavController()
 
     NavHost(
@@ -15,7 +20,12 @@ fun SmsCleanerApp(hasPermissions: Boolean = false) {
         startDestination = "main"
     ) {
         composable("main") {
-            MainScreen(hasPermissions = hasPermissions)
+            MainScreen(
+                hasPermissions = hasPermissions,
+                showPermissionPermanentlyDenied = showPermissionPermanentlyDenied,
+                onRetryPermissionRequest = onRetryPermissionRequest,
+                onOpenAppSettings = onOpenAppSettings
+            )
         }
     }
 }

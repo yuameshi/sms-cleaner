@@ -48,6 +48,9 @@ fun Context.findActivity(): Activity? {
 @Composable
 fun MainScreen(
     hasPermissions: Boolean = false,
+    showPermissionPermanentlyDenied: Boolean = false,
+    onRetryPermissionRequest: () -> Unit = {},
+    onOpenAppSettings: () -> Unit = {},
     viewModel: SmsViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -336,10 +339,42 @@ fun MainScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "请在系统设置中授予应用权限",
+                            text = if (showPermissionPermanentlyDenied) {
+                                "权限被永久拒绝，请在设置中手动授予"
+                            } else {
+                                "请在系统设置中授予应用权限"
+                            },
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Button(
+                            onClick = {
+                                if (showPermissionPermanentlyDenied) {
+                                    onOpenAppSettings()
+                                } else {
+                                    onRetryPermissionRequest()
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = if (showPermissionPermanentlyDenied) {
+                                    Icons.Default.Settings
+                                } else {
+                                    Icons.Default.Refresh
+                                },
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = if (showPermissionPermanentlyDenied) {
+                                    "打开设置"
+                                } else {
+                                    "重试"
+                                }
+                            )
+                        }
                     }
                 }
             } else {
