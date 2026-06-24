@@ -35,8 +35,8 @@ targetSdk = 37 (Android 16)
 ### 1. 克隆仓库
 
 ```bash
-git clone <repository-url>
-cd SMS-Cleaner-Workspace
+git clone https://github.com/yuameshi/sms-cleaner
+cd sms-cleaner
 ```
 
 ### 2. 配置签名

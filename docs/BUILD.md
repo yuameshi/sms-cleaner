@@ -262,4 +262,3 @@ implementation(platform("androidx.compose:compose-bom:2026.06.00"))
 - **命名空间**: `top.yuameshi.sms.cleaner`
 - **版本号**: 1.0.0 (versionCode: 1)
 - **最低支持版本**: Android 6.0 (API 23)
-

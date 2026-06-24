@@ -708,4 +708,3 @@ sealed class OperationState {
     - `message`: 成功信息
 - `Error`: 操作失败
     - `message`: 错误信息
-

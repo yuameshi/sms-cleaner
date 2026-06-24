@@ -2,6 +2,9 @@
 
 一款高效的 Android 短信管理工具，支持多维度筛选、批量删除和 CSV 格式导出/导入功能。
 
+[![GitHub release (latest by date)](https://img.shields.io/github/v/release/yuameshi/sms-cleaner?style=flat-square)
+](https://github.com/yuameshi/sms-cleaner/releases)
+
 ## 功能特性
 
 - 多维度筛选（关键词、号码、日期范围、已读状态、锁定状态、消息类型、SIM 卡、联系人）
@@ -18,8 +21,9 @@
 ## 快速开始
 
 ```bash
-git clone <repository-url>
-cd SMS-Cleaner-Workspace
+git clone https://github.com/yuameshi/sms-cleaner
+cd sms-cleaner
+# 构建调试版本
 ./gradlew assembleDebug
 ```
 
