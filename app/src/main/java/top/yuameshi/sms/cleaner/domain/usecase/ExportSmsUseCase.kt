@@ -71,6 +71,55 @@ class ExportSmsUseCase @Inject constructor(
         }
     }
 
+    /**
+     * 按 ID 列表导出选中的短信
+     */
+    suspend operator fun invoke(
+        selectedIds: Set<Long>,
+        uri: Uri,
+        onProgress: (exported: Int, total: Int) -> Unit
+    ): Result<Int> = withContext(Dispatchers.IO) {
+        try {
+            val outputStream = context.contentResolver.openOutputStream(uri)
+                ?: throw Exception("无法打开输出流")
+
+            val total = selectedIds.size
+
+            // Write BOM for UTF-8
+            outputStream.write(byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()))
+
+            // Write header (RFC 4180: CRLF line endings)
+            val header = "ID,号码,内容,时间,类型,已读状态,锁定状态,SIM卡,发送状态"
+            outputStream.write("$header\r\n".toByteArray(Charsets.UTF_8))
+
+            var exported = 0
+            val idList = selectedIds.toList()
+            var page = 0
+            val pageSize = 100
+
+            while (exported < total) {
+                val pageIds = idList.drop(page * pageSize).take(pageSize)
+                if (pageIds.isEmpty()) break
+
+                val messages = smsRepository.getSmsMessagesByIds(pageIds)
+                messages.forEach { message ->
+                    val line = formatCsvLine(message)
+                    outputStream.write("$line\r\n".toByteArray(Charsets.UTF_8))
+                    exported++
+                    onProgress(exported, total)
+                }
+
+                page++
+            }
+
+            outputStream.flush()
+            outputStream.close()
+            Result.success(exported)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     private fun formatCsvLine(message: SmsMessage): String {
         val dateFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
         val dateStr = dateFormat.format(Date(message.date))

@@ -47,6 +47,10 @@ class SmsRepositoryImpl @Inject constructor(
         return smsDataSource.checkDuplicate(address, body, date)
     }
 
+    override suspend fun getSmsMessagesByIds(ids: List<Long>): List<SmsMessage> {
+        return smsDataSource.getSmsMessagesByIds(ids)
+    }
+
     override fun getSimCards(): List<SimCardInfo> {
         return smsDataSource.getSimCards()
     }

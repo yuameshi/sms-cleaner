@@ -274,9 +274,17 @@ class ExportSmsUseCase @Inject constructor(
     @ApplicationContext private val context: Context,
     private val smsRepository: SmsRepository
 ) {
+    // 按筛选条件导出
     suspend operator fun invoke(
         filterState: FilterState,
         exportAll: Boolean,
+        uri: Uri,
+        onProgress: (exported: Int, total: Int) -> Unit
+    ): Result<Int>
+
+    // 按 ID 列表导出（多选已选模式）
+    suspend operator fun invoke(
+        selectedIds: Set<Long>,
         uri: Uri,
         onProgress: (exported: Int, total: Int) -> Unit
     ): Result<Int>
@@ -287,6 +295,7 @@ class ExportSmsUseCase @Inject constructor(
 
 - `filterState`: 筛选条件
 - `exportAll`: 是否导出全部（忽略 filterState）
+- `selectedIds`: 要导出的消息 ID 集合（多选已选模式）
 - `uri`: 输出文件 URI
 - `onProgress`: 进度回调（已导出数, 总数）
 
@@ -423,6 +432,8 @@ interface SmsRepository {
 
     suspend fun checkDuplicate(address: String, body: String, date: Long): Boolean
 
+    suspend fun getSmsMessagesByIds(ids: List<Long>): List<SmsMessage>
+
     fun getSimCards(): List<SimCardInfo>
 }
 ```
@@ -435,6 +446,7 @@ interface SmsRepository {
 - `deleteMessagesByFilter(filterState)`: 按筛选条件删除消息
 - `insertMessage(address, body, date, type, read, subId)`: 插入新消息
 - `checkDuplicate(address, body, date)`: 检查消息是否重复
+- `getSmsMessagesByIds(ids)`: 按 ID 列表批量获取消息（分块查询，每块 100 条）
 - `getSimCards()`: 获取 SIM 卡列表
 
 ### SmsRepositoryImpl
@@ -506,6 +518,8 @@ class SmsDataSource @Inject constructor(
         page: Int,
         pageSize: Int = 50
     ): List<SmsMessage>
+
+    suspend fun getSmsMessagesByIds(ids: List<Long>): List<SmsMessage>
 
     suspend fun getTotalCount(filterState: FilterState): Int
 

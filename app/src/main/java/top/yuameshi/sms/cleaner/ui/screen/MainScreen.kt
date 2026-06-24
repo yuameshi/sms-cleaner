@@ -373,11 +373,13 @@ fun MainScreen(
         onConfirmDelete = { viewModel.confirmDelete() },
         onCancelDelete = { viewModel.cancelDelete() },
         showExportDialog = showExportDialog,
+        isMultiSelectMode = uiState.selectionState.isMultiSelectMode,
+        selectedCount = uiState.selectionState.selectedCount,
         filteredCount = (uiState.smsState as? SmsUiState.Success)?.filteredCount ?: 0,
         totalCount = (uiState.smsState as? SmsUiState.Success)?.totalCount ?: 0,
         hasFilters = uiState.filterState.hasFilters(),
-        onExport = { exportAll, uri ->
-            viewModel.exportMessages(exportAll, uri)
+        onExport = { scope, uri ->
+            viewModel.exportMessages(scope, uiState.selectionState.selectedIds, uri)
             showExportDialog = false
         },
         onDismissExport = { showExportDialog = false },

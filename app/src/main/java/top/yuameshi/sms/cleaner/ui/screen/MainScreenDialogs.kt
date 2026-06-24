@@ -29,10 +29,12 @@ fun MainScreenDialogs(
     onCancelDelete: () -> Unit,
     // Export dialog
     showExportDialog: Boolean,
+    isMultiSelectMode: Boolean,
+    selectedCount: Int,
     filteredCount: Int,
     totalCount: Int,
     hasFilters: Boolean,
-    onExport: (Boolean, Uri) -> Unit,
+    onExport: (ExportScope, Uri) -> Unit,
     onDismissExport: () -> Unit,
     // Import dialog
     showImportDialog: Boolean,
@@ -62,6 +64,8 @@ fun MainScreenDialogs(
     // Export dialog
     if (showExportDialog) {
         ExportDialog(
+            isMultiSelectMode = isMultiSelectMode,
+            selectedCount = selectedCount,
             filteredCount = filteredCount,
             totalCount = totalCount,
             hasFilters = hasFilters,

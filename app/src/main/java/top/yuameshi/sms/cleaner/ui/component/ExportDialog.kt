@@ -23,20 +23,32 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import top.yuameshi.sms.cleaner.ui.screen.ExportScope
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 @Composable
 fun ExportDialog(
+    isMultiSelectMode: Boolean,
+    selectedCount: Int,
     filteredCount: Int,
     totalCount: Int,
     hasFilters: Boolean,
-    onExport: (exportAll: Boolean, uri: Uri) -> Unit,
+    onExport: (scope: ExportScope, uri: Uri) -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var exportAll by remember { mutableStateOf(!hasFilters) }
+    // 多选模式下默认"导出已选"，否则默认"导出全部"或"导出筛选结果"
+    var exportScope by remember {
+        mutableStateOf(
+            when {
+                isMultiSelectMode && selectedCount > 0 -> ExportScope.SELECTED
+                hasFilters -> ExportScope.FILTERED
+                else -> ExportScope.ALL
+            }
+        )
+    }
     var fileName by remember {
         mutableStateOf("sms_backup_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}")
     }
@@ -44,7 +56,7 @@ fun ExportDialog(
     val createDocumentLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv")
     ) { uri: Uri? ->
-        uri?.let { onExport(exportAll, it) }
+        uri?.let { onExport(exportScope, it) }
     }
 
     AlertDialog(
@@ -56,25 +68,41 @@ fun ExportDialog(
                 Text("导出范围：", style = MaterialTheme.typography.titleSmall)
                 Spacer(modifier = Modifier.height(8.dp))
 
+                // 多选模式：显示"导出已选"
+                if (isMultiSelectMode && selectedCount > 0) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = exportScope == ExportScope.SELECTED,
+                            onClick = { exportScope = ExportScope.SELECTED }
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("导出已选 ($selectedCount 条)")
+                    }
+                }
+
+                // 有筛选条件时：显示"导出当前筛选结果"
                 if (hasFilters) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         RadioButton(
-                            selected = !exportAll,
-                            onClick = { exportAll = false }
+                            selected = exportScope == ExportScope.FILTERED,
+                            onClick = { exportScope = ExportScope.FILTERED }
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("导出当前筛选结果 ($filteredCount 条)")
                     }
                 }
 
+                // 始终显示"导出全部"
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     RadioButton(
-                        selected = exportAll,
-                        onClick = { exportAll = true }
+                        selected = exportScope == ExportScope.ALL,
+                        onClick = { exportScope = ExportScope.ALL }
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text("导出全部短信 ($totalCount 条)")

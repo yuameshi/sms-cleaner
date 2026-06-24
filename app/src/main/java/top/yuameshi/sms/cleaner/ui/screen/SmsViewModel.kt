@@ -25,6 +25,15 @@ import top.yuameshi.sms.cleaner.domain.usecase.LoadSimCardsUseCase
 import top.yuameshi.sms.cleaner.data.repository.FilterHistoryRepository
 import javax.inject.Inject
 
+/**
+ * 导出范围
+ */
+enum class ExportScope {
+    ALL,       // 导出全部
+    FILTERED,  // 导出当前筛选结果
+    SELECTED   // 导出已选中
+}
+
 @HiltViewModel
 class SmsViewModel @Inject constructor(
     private val getSmsUseCase: GetSmsUseCase,
@@ -348,21 +357,48 @@ class SmsViewModel @Inject constructor(
         }
     }
 
-    fun exportMessages(exportAll: Boolean, uri: Uri) {
+    fun exportMessages(scope: ExportScope, selectedIds: Set<Long>, uri: Uri) {
         viewModelScope.launch {
             _uiState.update { it.copy(operationState = OperationState.Progress(0, 0)) }
 
             try {
-                val result = exportSmsUseCase(
-                    filterState = _uiState.value.filterState,
-                    exportAll = exportAll,
-                    uri = uri,
-                    onProgress = { exported, total ->
-                        _uiState.update {
-                            it.copy(operationState = OperationState.Progress(exported, total))
-                        }
+                val result = when (scope) {
+                    ExportScope.SELECTED -> {
+                        exportSmsUseCase(
+                            selectedIds = selectedIds,
+                            uri = uri,
+                            onProgress = { exported, total ->
+                                _uiState.update {
+                                    it.copy(operationState = OperationState.Progress(exported, total))
+                                }
+                            }
+                        )
                     }
-                )
+                    ExportScope.FILTERED -> {
+                        exportSmsUseCase(
+                            filterState = _uiState.value.filterState,
+                            exportAll = false,
+                            uri = uri,
+                            onProgress = { exported, total ->
+                                _uiState.update {
+                                    it.copy(operationState = OperationState.Progress(exported, total))
+                                }
+                            }
+                        )
+                    }
+                    ExportScope.ALL -> {
+                        exportSmsUseCase(
+                            filterState = _uiState.value.filterState,
+                            exportAll = true,
+                            uri = uri,
+                            onProgress = { exported, total ->
+                                _uiState.update {
+                                    it.copy(operationState = OperationState.Progress(exported, total))
+                                }
+                            }
+                        )
+                    }
+                }
 
                 result.fold(
                     onSuccess = { exportedCount ->

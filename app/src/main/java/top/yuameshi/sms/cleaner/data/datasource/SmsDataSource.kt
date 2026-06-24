@@ -80,6 +80,61 @@ class SmsDataSource @Inject constructor(
         } ?: emptyList()
     }
 
+    suspend fun getSmsMessagesByIds(ids: List<Long>): List<SmsMessage> = withContext(Dispatchers.IO) {
+        if (ids.isEmpty()) return@withContext emptyList()
+
+        val messages = mutableListOf<SmsMessage>()
+        ids.chunked(100).forEach { chunk ->
+            val idList = chunk.joinToString(",")
+            val cursor = contentResolver.query(
+                Telephony.Sms.CONTENT_URI,
+                arrayOf(
+                    Telephony.Sms._ID,
+                    Telephony.Sms.ADDRESS,
+                    Telephony.Sms.BODY,
+                    Telephony.Sms.DATE,
+                    Telephony.Sms.TYPE,
+                    Telephony.Sms.READ,
+                    Telephony.Sms.LOCKED,
+                    Telephony.Sms.SUBSCRIPTION_ID
+                ),
+                "${Telephony.Sms._ID} IN ($idList)",
+                null,
+                null
+            )
+
+            cursor?.use {
+                while (it.moveToNext()) {
+                    val id = it.getLong(it.getColumnIndexOrThrow(Telephony.Sms._ID))
+                    val address = it.getString(it.getColumnIndexOrThrow(Telephony.Sms.ADDRESS)) ?: ""
+                    val body = it.getString(it.getColumnIndexOrThrow(Telephony.Sms.BODY)) ?: ""
+                    val date = it.getLong(it.getColumnIndexOrThrow(Telephony.Sms.DATE))
+                    val type = it.getInt(it.getColumnIndexOrThrow(Telephony.Sms.TYPE))
+                    val read = it.getInt(it.getColumnIndexOrThrow(Telephony.Sms.READ)) == 1
+                    val locked = it.getInt(it.getColumnIndexOrThrow(Telephony.Sms.LOCKED)) == 1
+                    val subId = it.getInt(it.getColumnIndexOrThrow(Telephony.Sms.SUBSCRIPTION_ID))
+
+                    val contactName = getContactName(address)
+
+                    messages.add(
+                        SmsMessage(
+                            id = id,
+                            address = address,
+                            body = body,
+                            date = date,
+                            type = type,
+                            read = read,
+                            locked = locked,
+                            subId = subId,
+                            contactName = contactName
+                        )
+                    )
+                }
+            }
+        }
+        messages
+    }
+
     suspend fun getTotalCount(filterState: FilterState): Int = withContext(Dispatchers.IO) {
         if (!filterState.hasFilters()) {
             cachedTotalCount?.let { return@withContext it }

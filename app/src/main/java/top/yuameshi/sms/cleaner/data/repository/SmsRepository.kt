@@ -29,5 +29,7 @@ interface SmsRepository {
 
     suspend fun checkDuplicate(address: String, body: String, date: Long): Boolean
 
+    suspend fun getSmsMessagesByIds(ids: List<Long>): List<SmsMessage>
+
     fun getSimCards(): List<SimCardInfo>
 }
