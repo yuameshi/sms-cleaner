@@ -146,3 +146,8 @@ UI Layer (Compose)  →  ViewModel Layer  →  Domain Layer (UseCases)  →  Dat
 
 [MIT License](LICENSE)
 
+# 致谢
+
+感谢小米发起的[Xiaomi MiMo Orbit百万亿 Token 创造者激励计划](https://100t.xiaomimimo.com/)，为本项目提供支持
+
+同时也感谢每一个开源库的作者和贡献者，正是因为有了你们的无私奉献，才让开源社区得以繁荣发展。
