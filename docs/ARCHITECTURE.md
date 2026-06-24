@@ -1,380 +1,588 @@
 # 架构说明
 
-## 架构概述
+SMS Cleaner 采用 **MVVM + Clean Architecture** 分层架构，基于 Kotlin + Jetpack Compose + Hilt 构建。
 
-SMS Cleaner 采用 **MVVM + Clean Architecture** 分层架构，结合 Jetpack Compose 声明式 UI 框架。
-
-## 架构图
+## 整体架构
 
 ```mermaid
 graph TB
-    subgraph "UI Layer (Compose)"
-        MainActivity[MainActivity]
-        MainScreen[MainScreen]
-        SmsListItem[SmsListItem]
-        FilterPanel[FilterPanel]
-        ExportDialog[ExportDialog]
-        ImportDialog[ImportDialog]
-        DeleteConfirmDialog[DeleteConfirmDialog]
+    subgraph UI["UI 层 (Jetpack Compose + Material3)"]
+        MainActivity
+        MainScreen
+        Components["组件 (Dialog, ListItem, Drawer...)"]
+        Theme["主题 (Color, Theme, Type)"]
+        NavGraph["导航 (NavGraph)"]
     end
-    
-    subgraph "ViewModel Layer"
-        SmsViewModel[SmsViewModel]
+
+    subgraph ViewModel["ViewModel 层"]
+        SmsViewModel["@HiltViewModel<br/>SmsViewModel"]
+        SmsScreenUiState["SmsScreenUiState<br/>(12 个状态字段)"]
+        SelectionManager["SelectionManager<br/>(选择状态)"]
+        UiState["UiState<br/>(SmsUiState, OperationState)"]
     end
-    
-    subgraph "Domain Layer (Use Cases)"
-        GetSmsUseCase[GetSmsUseCase]
-        FilterSmsUseCase[FilterSmsUseCase]
-        ExportSmsUseCase[ExportSmsUseCase]
-        ImportSmsUseCase[ImportSmsUseCase]
+
+    subgraph Domain["Domain 层 (UseCases)"]
+        GetSmsUseCase
+        DeleteSmsUseCase
+        ExportSmsUseCase
+        ImportSmsUseCase
+        CheckDefaultSmsUseCase
+        CheckPermissionsUseCase
+        LoadSimCardsUseCase
     end
-    
-    subgraph "Data Layer"
-        SmsOperationManager[SmsOperationManager]
-        SmsRepository[SmsRepository]
-        FilterHistoryRepository[FilterHistoryRepository]
-        SmsDataSource[SmsDataSource]
+
+    subgraph Data["Data 层"]
+        SmsRepository["SmsRepository (接口)"]
+        SmsRepositoryImpl["SmsRepositoryImpl"]
+        SmsDataSource["SmsDataSource<br/>(ContentResolver)"]
+        SmsSelectionBuilder["SmsSelectionBuilder<br/>(SQL 构建器)"]
+        FilterHistoryRepository["FilterHistoryRepository (接口)"]
+        FilterHistoryRepositoryImpl["FilterHistoryRepositoryImpl<br/>(SharedPreferences)"]
+        SmsOperationManager["SmsOperationManager"]
     end
-    
-    subgraph "System Integration"
-        ContentResolver[ContentResolver]
-        RoleManager[RoleManager]
-        TelephonyAPI[Telephony API]
+
+    subgraph DI["依赖注入 (Hilt)"]
+        AppModule["AppModule<br/>(Context)"]
+        DataModule["DataModule<br/>(Repository 绑定)"]
     end
-    
+
+    subgraph Util["工具类"]
+        DefaultSmsManager
+        PermissionUtils
+        CsvParser
+        DeviceUtils
+        SmsTextUtils
+        ActivityUtils
+    end
+
+    subgraph Receiver["广播接收器 / 服务"]
+        SmsReceiver
+        MmsReceiver
+        WapPushReceiver
+        ComposeSmsActivity
+        RespondService
+    end
+
     MainActivity --> MainScreen
     MainScreen --> SmsViewModel
-    MainScreen --> SmsListItem
-    MainScreen --> FilterPanel
-    MainScreen --> ExportDialog
-    MainScreen --> ImportDialog
-    MainScreen --> DeleteConfirmDialog
-    
     SmsViewModel --> GetSmsUseCase
-    SmsViewModel --> FilterSmsUseCase
-    SmsViewModel --> SmsOperationManager
+    SmsViewModel --> DeleteSmsUseCase
     SmsViewModel --> ExportSmsUseCase
     SmsViewModel --> ImportSmsUseCase
+    SmsViewModel --> CheckDefaultSmsUseCase
+    SmsViewModel --> CheckPermissionsUseCase
+    SmsViewModel --> LoadSimCardsUseCase
     SmsViewModel --> FilterHistoryRepository
-    
+
     GetSmsUseCase --> SmsRepository
-    FilterSmsUseCase --> FilterState
-    SmsOperationManager --> SmsRepository
+    DeleteSmsUseCase --> SmsRepository
     ExportSmsUseCase --> SmsRepository
-    ImportSmsUseCase --> SmsOperationManager
-    
-    SmsRepository --> SmsDataSource
-    SmsDataSource --> ContentResolver
-    SmsDataSource --> TelephonyAPI
-    
-    subgraph "Default SMS App Management"
-        DefaultSmsManager[DefaultSmsManager]
-        PermissionUtils[PermissionUtils]
-    end
-    
-    SmsViewModel --> DefaultSmsManager
-    DefaultSmsManager --> RoleManager
-    DefaultSmsManager --> TelephonyAPI
+    ImportSmsUseCase --> SmsRepository
+    LoadSimCardsUseCase --> SmsRepository
+    CheckDefaultSmsUseCase --> DefaultSmsManager
+    CheckPermissionsUseCase --> PermissionUtils
+
+    SmsRepositoryImpl --> SmsRepository
+    SmsRepositoryImpl --> SmsDataSource
+    SmsDataSource --> SmsSelectionBuilder
+    FilterHistoryRepositoryImpl --> FilterHistoryRepository
+
+    AppModule --> Context
+    DataModule --> SmsRepositoryImpl
+    DataModule --> FilterHistoryRepositoryImpl
+
+    style UI fill:#e1f5fe
+    style ViewModel fill:#fff3e0
+    style Domain fill:#e8f5e9
+    style Data fill:#fce4ec
+    style DI fill:#f3e5f5
+    style Util fill:#f5f5f5
+    style Receiver fill:#fff9c4
 ```
 
-## 分层说明
+### 依赖规则
 
-### UI Layer (表现层)
+```
+UI 层 → ViewModel 层 → Domain 层 → Data 层 (接口)
+                                        ↑
+                              Data 层 (实现) ──── DI 注入
+```
 
-**职责**：负责 UI 渲染和用户交互
+- **UI 层** 只依赖 ViewModel，通过 Hilt 注入
+- **ViewModel 层** 依赖 UseCases 和 Repository 接口，不依赖 Android 框架
+- **Domain 层** 依赖 Repository 接口，不依赖具体实现
+- **Data 层** 实现 Repository 接口，封装 ContentResolver 等系统 API
 
-**组件**：
-- `MainActivity` - 应用入口，权限请求
-- `MainScreen` - 主屏幕，组合所有 UI 组件
-- `SmsListItem` - 短信列表项组件
-- `FilterPanel` - 筛选面板组件
-- `ExportDialog` - 导出对话框
-- `ImportDialog` - 导入对话框
-- `DeleteConfirmDialog` - 删除确认对话框
+## 各层详解
 
-**技术栈**：
-- Jetpack Compose
-- Material3
-- Navigation Compose
+### UI 层
 
-### ViewModel Layer (视图模型层)
+路径：`app/src/main/java/top/yuameshi/sms/cleaner/ui/`
 
-**职责**：管理 UI 状态，协调业务逻辑
+UI 层使用 Jetpack Compose + Material3 构建，负责界面渲染和用户交互。
 
-**组件**：
-- `SmsViewModel` - 主视图模型，管理所有 UI 状态
-- `SelectionManager` - 选择状态管理器（内部 StateFlow，ViewModel 观察并镜像到统一状态）
+**入口**：`MainActivity.kt` 是应用入口，处理权限请求和 Edge-to-Edge 显示设置。通过 `permissionLauncher` 请求 `READ_SMS`、`READ_CONTACTS`、`READ_PHONE_STATE` 等权限。
 
-**状态管理**：
-- `SmsScreenUiState` - 统一 UI 状态数据类，包含 12 个字段：
-  - `smsState: SmsUiState` - 短信列表状态（Loading, Success, Error）
-  - `filterState: FilterState` - 筛选条件
-  - `selectionState: SelectionState` - 选择状态
-  - `operationState: OperationState` - 操作状态（Idle, Progress, Success, Error）
-  - `isDefaultSmsApp: Boolean` - 是否为默认短信 App
-  - `hasPermissions: Boolean` - 是否已授权
-  - `filterHistory: List<String>` - 筛选历史
-  - `simCards: List<SimCardInfo>` - SIM 卡列表
-  - `previewMessages: List<SmsMessage>` - 预览消息
-  - `isRefreshing: Boolean` - 是否正在刷新
-  - `showDeleteConfirmDialog: Boolean` - 是否显示删除确认对话框
-  - `showDefaultSmsDialog: Boolean` - 是否显示默认短信 App 对话框
-- 替代了原来分散的 12 个独立 `StateFlow`
-- MainScreen 从 10 个 `collectAsStateWithLifecycle()` 调用减少到 1 个
+**导航**：`NavGraph.kt` 使用 Jetpack Navigation，当前只有单个 `main` 路由指向 `MainScreen`。
 
-### Domain Layer (领域层)
+**主屏幕**：`MainScreen.kt` 是核心 Composable，包含：
 
-**职责**：封装业务逻辑，实现用例
+- `ModalNavigationDrawer` + `DrawerFilterPanel` 侧边栏筛选面板
+- `Scaffold` + `MainScreenTopBar` 顶部栏（含筛选按钮、导出/导入菜单）
+- `LazyColumn` + `SmsListItem` 短信列表（支持下拉刷新、分页加载）
+- `MultiSelectBottomBar` 多选操作栏（删除、全选、反选、取消全选、导出）
+- `MainScreenDialogs` 对话框集合（删除确认、导出、导入、默认短信 App 设置、操作进度）
 
-**用例**：
-- `GetSmsUseCase` - 获取短信（分页）
-- `DeleteSmsUseCase` - 删除短信（单条/批量/按条件）
-- `ExportSmsUseCase` - 导出短信为 CSV
-- `ImportSmsUseCase` - 从 CSV 导入短信
-- `CheckDefaultSmsUseCase` - 检查当前 App 是否为默认短信 App
-- `CheckPermissionsUseCase` - 检查权限状态
-- `LoadSimCardsUseCase` - 加载 SIM 卡信息并判断短名称唯一性
+**组件**（`ui/component/`）：
 
-**特点**：
-- 纯 Kotlin 代码，不依赖 Android 框架
-- 每个用例单一职责
-- 通过构造函数注入依赖
-- `SmsViewModel` 零 Android 框架依赖，Context 已下沉到 UseCase 层
+| 组件                  | 用途                                   |
+| --------------------- | -------------------------------------- |
+| `DatePickerDialog`    | 自定义日期范围选择                     |
+| `DeleteConfirmDialog` | 删除确认（含预览消息）                 |
+| `DrawerFilterPanel`   | 侧边栏多维度筛选面板                   |
+| `ExportDialog`        | 导出选项（全部/筛选结果）              |
+| `ImportDialog`        | CSV 文件导入                           |
+| `SmsListItem`         | 单条短信卡片（支持长按多选、侧滑删除） |
 
-### Data Layer (数据层)
+**主题**（`ui/theme/`）：定义 Material3 颜色方案、字体排版和深色模式支持。
 
-**职责**：数据访问和存储
+### ViewModel 层
 
-**组件**：
-- `SmsOperationManager` - 统一的短信数据库操作管理器
-- `SmsRepository` - 短信仓库，封装数据源
-- `FilterHistoryRepository` - 筛选历史仓库（SharedPreferences）
-- `SmsDataSource` - 短信数据源，封装 ContentResolver
+路径：`app/src/main/java/top/yuameshi/sms/cleaner/ui/screen/`
 
-**数据模型**：
-- `SmsMessage` - 短信数据模型
-- `FilterState` - 筛选状态模型
-- `SelectionState` - 选择状态模型
+**SmsViewModel** 是核心 ViewModel，使用 `@HiltViewModel` 注解，注入 7 个 UseCase + `FilterHistoryRepository`。
+
+关键设计：**SmsViewModel 零 Android 框架依赖**。`Context` 依赖已下沉到 `CheckDefaultSmsUseCase`、`CheckPermissionsUseCase`、`ExportSmsUseCase`、`ImportSmsUseCase` 中。
+
+**状态管理**：`SmsScreenUiState` 是统一的状态数据类，包含 12 个字段：
+
+```kotlin
+data class SmsScreenUiState(
+    val smsState: SmsUiState,               // 短信列表状态 (Loading/Success/Error)
+    val filterState: FilterState,           // 筛选条件
+    val selectionState: SelectionState,     // 多选状态
+    val operationState: OperationState,     // 操作状态 (Idle/Progress/Success/Error)
+    val isDefaultSmsApp: Boolean,           // 是否为默认短信 App
+    val hasPermissions: Boolean,            // 是否有权限
+    val filterHistory: List<String>,        // 筛选历史
+    val simCards: List<SimCardInfo>,        // SIM 卡列表
+    val previewMessages: List<SmsMessage>,  // 删除预览消息
+    val isRefreshing: Boolean,              // 下拉刷新状态
+    val showDeleteConfirmDialog: Boolean,   // 删除确认对话框
+    val showDefaultSmsDialog: Boolean       // 默认短信 App 对话框
+)
+```
+
+这种设计将原来分散的 12 个 `StateFlow` 合并为单一状态流，MainScreen 只需一次 `collectAsStateWithLifecycle()` 调用。
+
+**SmsUiState** 和 **OperationState** 是密封类：
+
+```kotlin
+sealed class SmsUiState {
+    object Loading : SmsUiState()
+    data class Success(
+        val messages: List<SmsMessage>,
+        val totalCount: Int,
+        val filteredCount: Int,
+        val hasMore: Boolean,
+        val isLoading: Boolean = false
+    ) : SmsUiState()
+    data class Error(val message: String) : SmsUiState()
+}
+
+sealed class OperationState {
+    object Idle : OperationState()
+    data class Progress(val current: Int, val total: Int) : OperationState()
+    data class Success(val message: String) : OperationState()
+    data class Error(val message: String) : OperationState()
+}
+```
+
+**SelectionManager** 是选择状态的内部持有者，ViewModel 通过 `collect` 将其状态镜像到 `SmsScreenUiState.selectionState` 中。这实现了选择逻辑与 ViewModel 的解耦。
+
+### Domain 层
+
+路径：`app/src/main/java/top/yuameshi/sms/cleaner/domain/usecase/`
+
+Domain 层包含 7 个 UseCase，每个 UseCase 封装单一业务逻辑：
+
+| UseCase                   | 职责                              | 依赖                        |
+| ------------------------- | --------------------------------- | --------------------------- |
+| `GetSmsUseCase`           | 获取短信（分页）+ 查询总数        | `SmsRepository`             |
+| `DeleteSmsUseCase`        | 删除短信（单条/多条/按条件）      | `SmsRepository`             |
+| `ExportSmsUseCase`        | 导出短信为 CSV 文件               | `SmsRepository` + `Context` |
+| `ImportSmsUseCase`        | 从 CSV 文件导入短信               | `SmsRepository` + `Context` |
+| `CheckDefaultSmsUseCase`  | 检查是否为默认短信 App            | `Context`                   |
+| `CheckPermissionsUseCase` | 检查权限状态                      | `Context`                   |
+| `LoadSimCardsUseCase`     | 加载 SIM 卡信息并判断短名称唯一性 | `SmsRepository`             |
+
+**DeleteSmsUseCase** 使用 `DeleteType` 密封类区分删除类型：
+
+```kotlin
+sealed class DeleteType {
+    data object Single : DeleteType()      // 单条删除
+    data object Multiple : DeleteType()    // 多选删除
+    data object AllByFilter : DeleteType() // 按筛选条件删除全部
+}
+```
+
+**LoadSimCardsUseCase** 返回 `SimCardsResult`，包含 SIM 卡列表和 `useShortSimName` 标志。短名称唯一性判断逻辑：如果所有 SIM 卡的短名称都不重复，则使用短名称；否则使用长名称（含蒙版手机号）。
+
+### Data 层
+
+路径：`app/src/main/java/top/yuameshi/sms/cleaner/data/`
+
+Data 层负责数据访问，通过 Repository 接口实现依赖反转。
+
+**SmsRepository**（接口）定义了 7 个方法：
+
+```kotlin
+interface SmsRepository {
+    suspend fun getSmsMessages(filterState, page, pageSize): List<SmsMessage>
+    suspend fun getTotalCount(filterState): Int
+    suspend fun deleteMessages(ids: List<Long>): Int
+    suspend fun deleteMessagesByFilter(filterState): Int
+    suspend fun insertMessage(address, body, date, type, read, subId): Uri?
+    suspend fun checkDuplicate(address, body, date): Boolean
+    fun getSimCards(): List<SimCardInfo>
+}
+```
+
+**SmsRepositoryImpl** 是 `SmsRepository` 的实现，直接委托给 `SmsDataSource`。
+
+**SmsDataSource** 封装 `ContentResolver`，是实际与 Android 短信数据库交互的类：
+
+- 查询使用 `Telephony.Sms.CONTENT_URI`
+- 删除操作分批处理（每批 100 条），避免 SQL 语句过长
+- 维护 `cachedTotalCount` 缓存，无筛选条件时复用计数结果
+- `getSimCards()` 通过 `SubscriptionManager` 获取活跃 SIM 卡信息
+- `getContactName()` 通过 `ContactsContract.PhoneLookup` 查询联系人姓名
+
+**SmsSelectionBuilder** 是 SQL WHERE 子句构建器，将 `FilterState` 转换为 `Pair<String?, Array<String>?>`。支持的筛选维度：
+
+- 关键词（`BODY LIKE ?`）
+- 号码（`ADDRESS LIKE ?`）
+- 日期范围（今天/7天/30天/90天/自定义）
+- 已读状态
+- 锁定状态
+- 消息类型（收件箱/已发送/草稿/发件箱）
+- SIM 卡（`SUBSCRIPTION_ID`）
+- 联系人（`THREAD_ID`）
+
+**SmsOperationManager** 是统一的短信数据库操作管理器，在执行写入操作前检查默认短信 App 状态。
+
+**FilterHistoryRepository**（接口 + 实现）使用 `SharedPreferences` 存储筛选历史，最多保留 5 条记录，使用 `|||` 分隔符。
+
+**数据模型**（`data/model/`）：
+
+| 模型             | 用途                                                                                                      |
+| ---------------- | --------------------------------------------------------------------------------------------------------- |
+| `SmsMessage`     | 短信数据（id, address, body, date, type, read, locked, subId, contactName）                               |
+| `FilterState`    | 筛选条件（keyword, number, dateRange, readStatus, lockStatus, messageType, simSubscriptionId, contactId） |
+| `SelectionState` | 多选状态（isMultiSelectMode, selectedIds, isSelectAll, totalFilteredCount）                               |
+| `SimCardInfo`    | SIM 卡信息（subscriptionId, displayName, carrierName, phoneNumber, slotIndex）                            |
 
 ## 数据流
 
-### 短信列表加载流程
+### 短信加载流程
 
 ```mermaid
 sequenceDiagram
-    participant UI as MainScreen
-    participant VM as SmsViewModel
-    participant UC as GetSmsUseCase
-    participant Repo as SmsRepository
-    participant DS as SmsDataSource
-    participant CR as ContentResolver
-    
-    UI->>VM: loadMessages()
-    VM->>UC: getTotalCount(filterState)
-    UC->>Repo: getTotalCount(filterState)
-    Repo->>DS: getTotalCount(filterState)
-    DS->>CR: query(count)
-    CR-->>DS: cursor.count
-    DS-->>Repo: totalCount
-    Repo-->>UC: totalCount
-    UC-->>VM: totalCount
-    
-    VM->>UC: invoke(filterState, page)
-    UC->>Repo: getSmsMessages(filterState, page)
-    Repo->>DS: getSmsMessages(filterState, page)
-    DS->>CR: query(messages)
-    CR-->>DS: cursor
-    DS-->>Repo: List<SmsMessage>
-    Repo-->>UC: List<SmsMessage>
-    UC-->>VM: List<SmsMessage>
-    
-    VM-->>UI: SmsUiState.Success
+    participant MainScreen
+    participant SmsViewModel
+    participant GetSmsUseCase
+    participant SmsRepository
+    participant SmsDataSource
+    participant SmsSelectionBuilder
+    participant ContentResolver
+
+    MainScreen->>SmsViewModel: loadMessages()
+    SmsViewModel->>SmsViewModel: 更新 smsState = Loading
+
+    par 并行执行
+        SmsViewModel->>GetSmsUseCase: getTotalCount(filterState)
+        GetSmsUseCase->>SmsRepository: getTotalCount(filterState)
+        SmsRepository->>SmsDataSource: getTotalCount(filterState)
+        SmsDataSource->>SmsSelectionBuilder: buildSelection(filterState)
+        SmsSelectionBuilder-->>SmsDataSource: (selection, selectionArgs)
+        SmsDataSource->>ContentResolver: query(COUNT)
+        ContentResolver-->>SmsDataSource: count
+        SmsDataSource-->>SmsRepository: count
+        SmsRepository-->>GetSmsUseCase: count
+        GetSmsUseCase-->>SmsViewModel: filteredCount
+    and
+        SmsViewModel->>GetSmsUseCase: invoke(filterState, page=0)
+        GetSmsUseCase->>SmsRepository: getSmsMessages(filterState, page, pageSize)
+        SmsRepository->>SmsDataSource: getSmsMessages(filterState, page, pageSize)
+        SmsDataSource->>SmsSelectionBuilder: buildSelection(filterState)
+        SmsSelectionBuilder-->>SmsDataSource: (selection, selectionArgs)
+        SmsDataSource->>ContentResolver: query(LIMIT 50 OFFSET 0)
+        ContentResolver-->>SmsDataSource: cursor
+        SmsDataSource->>SmsDataSource: 解析 cursor + getContactName()
+        SmsDataSource-->>SmsRepository: List<SmsMessage>
+        SmsRepository-->>GetSmsUseCase: List<SmsMessage>
+        GetSmsUseCase-->>SmsViewModel: List<SmsMessage>
+    end
+
+    SmsViewModel->>SmsViewModel: 更新 smsState = Success
+    SmsViewModel-->>MainScreen: uiState 更新
 ```
 
-### 短信删除流程
+### 删除流程
 
 ```mermaid
 sequenceDiagram
-    participant UI as MainScreen
-    participant VM as SmsViewModel
-    participant SOM as SmsOperationManager
-    participant Repo as SmsRepository
-    participant DS as SmsDataSource
-    participant CR as ContentResolver
-    
-    UI->>VM: requestDelete(messageId) / requestDeleteSelected()
-    VM->>SOM: needsDefaultSmsApp()
-    SOM-->>VM: true/false
-    
-    alt Not Default SMS App
-        VM-->>UI: Show request dialog
-        UI->>VM: requestDefaultSmsRole()
+    participant MainScreen
+    participant SmsViewModel
+    participant DeleteSmsUseCase
+    participant SmsRepository
+    participant SmsDataSource
+    participant ContentResolver
+
+    MainScreen->>SmsViewModel: requestDelete(messageId)
+    SmsViewModel->>SmsViewModel: checkDefaultSmsUseCase()
+    alt 不是默认短信 App
+        SmsViewModel-->>MainScreen: showDefaultSmsDialog = true
+    else 是默认短信 App
+        SmsViewModel-->>MainScreen: showDeleteConfirmDialog = true
+        MainScreen->>SmsViewModel: confirmDelete()
+        SmsViewModel->>SmsViewModel: operationState = Progress(0, 0)
+
+        alt 单条删除
+            SmsViewModel->>DeleteSmsUseCase: invoke(Single, ids=[messageId])
+            DeleteSmsUseCase->>SmsRepository: deleteMessages(ids)
+            SmsRepository->>SmsDataSource: deleteMessages(ids)
+            SmsDataSource->>ContentResolver: delete(IN clause)
+            ContentResolver-->>SmsDataSource: deletedCount
+        else 多选删除
+            SmsViewModel->>DeleteSmsUseCase: invoke(Multiple, ids=selectedIds)
+            DeleteSmsUseCase->>SmsRepository: deleteMessages(ids)
+            SmsRepository->>SmsDataSource: deleteMessages(ids)
+            SmsDataSource->>ContentResolver: delete(IN clause, 分批100条)
+            ContentResolver-->>SmsDataSource: deletedCount
+        else 全选删除
+            SmsViewModel->>DeleteSmsUseCase: invoke(AllByFilter, filterState=filterState)
+            DeleteSmsUseCase->>SmsRepository: deleteMessagesByFilter(filterState)
+            SmsRepository->>SmsDataSource: deleteMessagesByFilter(filterState)
+            SmsDataSource->>ContentResolver: delete(WHERE clause)
+            ContentResolver-->>SmsDataSource: deletedCount
+        end
+
+        DeleteSmsUseCase-->>SmsViewModel: Result<Int>
+        SmsViewModel->>SmsViewModel: operationState = Success
+        SmsViewModel->>SmsViewModel: exitMultiSelectMode()
+        SmsViewModel->>SmsViewModel: loadMessages()
     end
-    
-    VM-->>UI: Show confirmation dialog
-    UI->>VM: confirmDelete()
-    VM->>SOM: deleteMessages(ids) / deleteMessagesByFilter(filterState)
-    SOM->>Repo: deleteMessages(ids)
-    Repo->>DS: deleteMessages(ids)
-    DS->>CR: delete(uri, selection)
-    CR-->>DS: deletedCount
-    DS-->>Repo: deletedCount
-    Repo-->>SOM: deletedCount
-    SOM-->>VM: deletedCount
-    
-    VM-->>UI: OperationState.Success
+```
+
+### 导入流程
+
+```mermaid
+sequenceDiagram
+    participant MainScreen
+    participant SmsViewModel
+    participant ImportSmsUseCase
+    participant CsvParser
+    participant SmsRepository
+    participant SmsDataSource
+
+    MainScreen->>SmsViewModel: requestImport()
+    SmsViewModel->>SmsViewModel: checkDefaultSmsUseCase()
+    alt 不是默认短信 App
+        SmsViewModel-->>MainScreen: showDefaultSmsDialog = true, return false
+    else 是默认短信 App
+        SmsViewModel-->>MainScreen: return true
+        MainScreen->>SmsViewModel: importMessages(uri)
+        SmsViewModel->>ImportSmsUseCase: invoke(uri, onProgress)
+        ImportSmsUseCase->>ImportSmsUseCase: 跳过 UTF-8 BOM
+        ImportSmsUseCase->>ImportSmsUseCase: 验证 CSV 表头
+        ImportSmsUseCase->>CsvParser: readCsvLine(reader)
+        CsvParser-->>ImportSmsUseCase: fields
+
+        loop 逐行处理
+            ImportSmsUseCase->>SmsRepository: checkDuplicate(address, body, date)
+            alt 重复
+                ImportSmsUseCase->>ImportSmsUseCase: skipped++
+            else 不重复
+                ImportSmsUseCase->>SmsRepository: insertMessage(...)
+                SmsRepository->>SmsDataSource: insertMessage(...)
+                SmsDataSource->>SmsDataSource: ContentResolver.insert()
+                ImportSmsUseCase->>ImportSmsUseCase: imported++
+            end
+            ImportSmsUseCase->>ImportSmsUseCase: onProgress(imported, skipped)
+            ImportSmsUseCase->>CsvParser: readCsvLine(reader)
+            CsvParser-->>ImportSmsUseCase: fields
+        end
+
+        ImportSmsUseCase-->>SmsViewModel: Result<ImportResult>
+        SmsViewModel->>SmsViewModel: operationState = Success
+        SmsViewModel->>SmsViewModel: loadMessages()
+    end
 ```
 
 ## 依赖注入
 
-### Hilt 配置
+使用 Hilt 进行依赖注入，包含两个模块：
 
-**模块**：
-- `AppModule` - 提供 Context 依赖
+### AppModule
 
-**注入点**：
-- `SmsViewModel` - @HiltViewModel
-- `SmsOperationManager` - @Singleton
-- `SmsRepository` - @Singleton
-- `SmsDataSource` - @Singleton
-- `FilterHistoryRepository` - @Singleton
-- 所有 Use Cases - @Inject constructor
+```kotlin
+@Module
+@InstallIn(SingletonComponent::class)
+object AppModule {
+    @Provides
+    @Singleton
+    fun provideContext(@ApplicationContext context: Context): Context {
+        return context
+    }
+}
+```
 
-### 依赖图
+提供全局 `Context` 单例，供 `SmsDataSource`、`FilterHistoryRepositoryImpl`、`CheckDefaultSmsUseCase`、`CheckPermissionsUseCase`、`ExportSmsUseCase`、`ImportSmsUseCase` 使用。
+
+### DataModule
+
+```kotlin
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class DataModule {
+    @Binds
+    abstract fun bindSmsRepository(impl: SmsRepositoryImpl): SmsRepository
+
+    @Binds
+    abstract fun bindFilterHistoryRepository(impl: FilterHistoryRepositoryImpl): FilterHistoryRepository
+}
+```
+
+通过 `@Binds` 将接口绑定到实现，实现依赖反转。
+
+### 注入关系图
 
 ```mermaid
 graph LR
-    Context[Context] --> SmsDataSource
-    Context --> FilterHistoryRepository
-    Context --> CheckDefaultSmsUseCase
-    Context --> CheckPermissionsUseCase
-    Context --> ExportSmsUseCase
-    
-    SmsDataSource --> SmsRepository
-    SmsRepository --> SmsOperationManager
-    SmsRepository --> GetSmsUseCase
-    SmsRepository --> DeleteSmsUseCase
-    SmsRepository --> ExportSmsUseCase
-    SmsRepository --> ImportSmsUseCase
-    SmsRepository --> LoadSimCardsUseCase
-    
-    SmsOperationManager --> ImportSmsUseCase
-    
-    GetSmsUseCase --> SmsViewModel
-    DeleteSmsUseCase --> SmsViewModel
-    ExportSmsUseCase --> SmsViewModel
-    ImportSmsUseCase --> SmsViewModel
-    CheckDefaultSmsUseCase --> SmsViewModel
-    CheckPermissionsUseCase --> SmsViewModel
-    LoadSimCardsUseCase --> SmsViewModel
-    FilterHistoryRepository --> SmsViewModel
-    
-    DefaultSmsManager --> CheckDefaultSmsUseCase
-    PermissionUtils --> CheckPermissionsUseCase
+    subgraph Hilt["Hilt 容器 (SingletonComponent)"]
+        Context["@ApplicationContext<br/>Context"]
+        SmsRepo["SmsRepository<br/>(SmsRepositoryImpl)"]
+        FilterRepo["FilterHistoryRepository<br/>(FilterHistoryRepositoryImpl)"]
+        SmsDS["SmsDataSource"]
+        SmsOpMgr["SmsOperationManager"]
+    end
+
+    subgraph UseCases["UseCases"]
+        GetSms["GetSmsUseCase"]
+        DeleteSms["DeleteSmsUseCase"]
+        ExportSms["ExportSmsUseCase"]
+        ImportSms["ImportSmsUseCase"]
+        CheckDefault["CheckDefaultSmsUseCase"]
+        CheckPerm["CheckPermissionsUseCase"]
+        LoadSim["LoadSimCardsUseCase"]
+    end
+
+    subgraph VM["ViewModel"]
+        SmsViewModel["SmsViewModel"]
+    end
+
+    Context --> SmsDS
+    Context --> FilterRepo
+    Context --> CheckDefault
+    Context --> CheckPerm
+    Context --> ExportSms
+    Context --> ImportSms
+
+    SmsDS --> SmsRepo
+    SmsRepo --> GetSms
+    SmsRepo --> DeleteSms
+    SmsRepo --> ExportSms
+    SmsRepo --> ImportSms
+    SmsRepo --> LoadSim
+
+    GetSms --> SmsViewModel
+    DeleteSms --> SmsViewModel
+    ExportSms --> SmsViewModel
+    ImportSms --> SmsViewModel
+    CheckDefault --> SmsViewModel
+    CheckPerm --> SmsViewModel
+    LoadSim --> SmsViewModel
+    FilterRepo --> SmsViewModel
 ```
 
 ## 关键设计决策
 
-### 1. 混合数据加载策略
+### 1. 混合数据加载：分页 + 数据库操作
 
-**决策**：分页显示 + 数据库操作的混合策略
+短信数据通过 `ContentResolver` 查询 Android 系统短信数据库，采用分页加载策略：
 
-**场景 1 - 无筛选（浏览全部）**：
-- 使用 LIMIT/OFFSET 分页查询
-- 每页 50 条，滚动到底部加载下一页
+- 默认每页 50 条，通过 `LIMIT` + `OFFSET` 实现
+- 支持下拉刷新（重新加载第一页）和滚动加载更多
+- `totalCount` 缓存：无筛选条件时复用计数结果，避免重复查询
+- `filteredCount` 与 `messages` 并行获取，减少等待时间
 
-**场景 2 - 有筛选条件**：
-- Step 1: 查询总数（cursor.count，快速，不加载数据）
-- Step 2: 分页加载显示（50 条/页）
-- Step 3: 全选/批量操作基于数据库条件（直接执行 delete with selection）
+### 2. 默认短信 App 管理
 
-**理由**：
-- 性能优化：不一次性加载 5 万条数据到内存
-- 功能可靠：全选真正选中所有匹配结果，不仅仅是当前页
-- 用户体验：用户清楚知道选择了多少条
+Android 要求删除/写入短信时，应用必须是默认短信 App。本应用采用"临时角色获取"策略：
 
-### 2. 正则表达式处理
+- 执行删除/导入前，先检查是否为默认短信 App
+- 如果不是，弹出对话框提示用户临时设置
+- 操作完成后，用户可通过菜单"恢复默认短信 App"
+- 使用 `RoleManager`（Android 10+）或 `Telephony.Sms`（Android 4.4-9）适配不同版本
 
-**决策**：在内存中过滤正则表达式
+### 3. CSV 格式规范
 
-**实现**：
-- Repository 层检测正则表达式
-- 如果有正则，先查询所有匹配其他条件的短信
-- 在内存中应用正则过滤
-- 应用分页
+导出/导入遵循 RFC 4180 标准：
 
-**理由**：
-- SQLite 不支持原生正则表达式
-- 内存过滤可以处理复杂正则
-- 性能可接受（5 万条短信约 100ms）
+- **编码**：UTF-8 with BOM（`\xEF\xBB\xBF`）
+- **行尾**：CRLF（`\r\n`）
+- **字段转义**：包含逗号、双引号、换行的字段用双引号包裹，内部双引号转义为 `""`
+- **解析器**：`CsvParser` 支持多行带引号字段的逐字符状态机解析
+- **表头**：`ID,号码,内容,时间,类型,已读状态,锁定状态,SIM卡,发送状态`
+- **去重**：导入时通过 `address + body + date` 三元组检查重复
 
-### 3. 默认短信应用管理
+### 4. 状态统一管理
 
-**决策**：临时成为默认短信应用，操作完成后引导用户恢复
+将原来分散的 12 个 `StateFlow` 合并为单一 `SmsScreenUiState`：
 
-**流程**：
-1. 应用启动时检查是否为默认短信应用
-2. 如果不是，弹窗提示用户设置
-3. 记录原默认应用包名
-4. API 29+ 使用 RoleManager，API 23-28 使用 Intent
-5. 操作完成后显示"恢复默认短信应用"按钮
-6. 引导用户前往系统设置恢复
+- 减少 MainScreen 的 `collectAsStateWithLifecycle()` 调用次数（从 12 次降到 1 次）
+- 避免多个状态流之间的时序不一致问题
+- 使用 `copy()` 实现不可变状态更新
 
-**理由**：
-- Android 安全机制要求，只有默认应用可以删除短信
-- 临时切换对用户影响最小
-- 引导恢复而非自动切换（无法自动切换）
+### 5. Repository 接口模式
 
-### 4. CSV 格式规范
+通过 `SmsRepository` 和 `FilterHistoryRepository` 接口实现依赖反转：
 
-**决策**：采用 RFC 4180 标准的 CSV 格式
+- Domain 层和 ViewModel 层只依赖接口，不依赖具体实现
+- 便于单元测试时 Mock 数据源
+- Data 层实现接口，封装 `ContentResolver`、`SharedPreferences` 等系统 API
 
-**规格**：
-- 编码：UTF-8 with BOM（Excel 直接打开不乱码）
-- 分隔符：逗号
-- 表头：包含
-- 字段：ID、号码、内容、时间、类型、已读状态、锁定状态、SIM 卡、发送状态
-- 时间格式：yyyy-MM-dd HH:mm:ss（可读时间）
-- 特殊字符：RFC 4180 标准处理（双引号包裹，内部双引号转义为两个双引号）
+### 6. 选择状态分离
 
-**理由**：
-- CSV 格式简单，Excel 可直接打开
-- UTF-8 with BOM 确保中文不乱码
-- 可读时间比时间戳更便于人工查看
+`SelectionManager` 作为独立的状态持有者，管理多选模式的进入/退出、选中/取消选中等逻辑。ViewModel 通过 `collect` 将其状态镜像到统一的 `SmsScreenUiState` 中，实现选择逻辑与业务逻辑的解耦。
 
-### 5. MVVM 架构合规性重构
+## 工具类
 
-**决策**：严格遵循 MVVM + Clean Architecture 原则，消除架构违规
+路径：`app/src/main/java/top/yuameshi/sms/cleaner/util/`
 
-**重构内容**：
+| 工具类              | 用途                                                  |
+| ------------------- | ----------------------------------------------------- |
+| `DefaultSmsManager` | 默认短信 App 状态检查和角色请求                       |
+| `PermissionUtils`   | 权限检查（`READ_SMS`、`READ_CONTACTS`）和永久拒绝检测 |
+| `CsvParser`         | RFC 4180 CSV 逐行解析器（支持多行带引号字段）         |
+| `DeviceUtils`       | 小米设备/MIUI/HyperOS 检测（用于 SIM 卡筛选兼容性）   |
+| `SmsTextUtils`      | 短信文本工具（首字母提取、日期格式化、关键词高亮）    |
+| `ActivityUtils`     | `Context.findActivity()` 扩展函数                     |
 
-1. **UseCase 提取**：
-   - 提取 `CheckDefaultSmsUseCase` 封装 `DefaultSmsManager.isDefaultSmsApp()` 调用
-   - 提取 `CheckPermissionsUseCase` 封装 `PermissionUtils.hasAllPermissions()` 调用
-   - 提取 `LoadSimCardsUseCase` 封装 SIM 卡加载和短名称唯一性判断逻辑
-   - 提取 `DeleteSmsUseCase` 统一删除逻辑（单条/批量/按条件）
+## 广播接收器 / 服务
 
-2. **Context 依赖下沉**：
-   - `SmsViewModel` 不再依赖 `@ApplicationContext context: Context`
-   - `ExportSmsUseCase` 改为接受 `Uri` 参数，内部通过 Context 打开输出流
-   - `CheckPermissionsUseCase` 和 `CheckDefaultSmsUseCase` 内部持有 Context
+路径：`app/src/main/java/top/yuameshi/sms/cleaner/receiver/` 和 `service/`
 
-3. **状态流整合**：
-   - 创建 `SmsScreenUiState` 数据类，整合 12 个独立 StateFlow
-   - 使用 `MutableStateFlow.update {}` 实现线程安全的原子更新
-   - MainScreen 从 10 个 `collectAsStateWithLifecycle()` 调用减少到 1 个
+这些组件是 Android 默认短信 App 角色要求的必备组件：
 
-4. **Repository 接口化**：
-   - 创建 `SmsRepository` 接口和 `SmsRepositoryImpl` 实现
-   - 创建 `FilterHistoryRepository` 接口和 `FilterHistoryRepositoryImpl` 实现
-   - 通过 Hilt `@Binds` 实现依赖反转
+| 组件                 | 用途                |
+| -------------------- | ------------------- |
+| `SmsReceiver`        | SMS 广播接收器      |
+| `MmsReceiver`        | MMS 广播接收器      |
+| `WapPushReceiver`    | WAP Push 广播接收器 |
+| `ComposeSmsActivity` | 短信发送 Activity   |
+| `RespondService`     | 短信回复服务        |
 
-5. **SmsDataSource 封装**：
-   - 提取 `SmsSelectionBuilder` 独立构建 SQL 筛选条件
-   - `SmsDataSource` 封装所有 ContentResolver 操作
+当本应用被设置为默认短信 App 时，这些组件负责接收和处理系统广播。
 
-**理由**：
-- ViewModel 零 Android 框架依赖，可独立单元测试
-- 单一职责原则：每个 UseCase 只负责一个业务操作
-- 依赖反转：ViewModel 依赖接口而非实现
-- 状态管理简化：统一状态对象减少状态同步复杂度

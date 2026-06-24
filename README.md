@@ -4,12 +4,12 @@
 
 ## 功能特性
 
-- 多维度筛选（关键词、号码、正则表达式、日期范围、已读状态、锁定状态、消息类型、SIM 卡）
-- 批量操作（多选、全选、批量删除、滑动删除）
+- 多维度筛选（关键词、号码、日期范围、已读状态、锁定状态、消息类型、SIM 卡、联系人）
+- 批量操作（多选、全选、反选、批量删除、滑动删除）
 - CSV 导出/导入（UTF-8 BOM，RFC 4180）
 - 默认短信应用管理
 - 筛选历史记录
-- 深色模式支持
+- 深色模式支持（Material You 动态颜色）
 
 ## 系统要求
 
@@ -19,27 +19,34 @@
 
 ```bash
 git clone <repository-url>
-cd sms-cleaner
+cd SMS-Cleaner-Workspace
 ./gradlew assembleDebug
 ```
+
+> 构建前需配置签名：在项目根目录创建 `keystore.properties` 文件，参考 [构建配置](docs/BUILD.md)。
 
 ## 文档
 
 详细文档请参阅 [docs/](docs/) 目录：
 
-- [架构说明](docs/ARCHITECTURE.md)
-- [开发指南](docs/DEVELOPMENT.md)
-- [功能说明](docs/FEATURES.md)
-- [API 文档](docs/API.md)
-- [构建配置](docs/BUILD.md)
+- [架构说明](docs/ARCHITECTURE.md) - MVVM + Clean Architecture 分层设计
+- [开发指南](docs/DEVELOPMENT.md) - 环境搭建与代码规范
+- [功能说明](docs/FEATURES.md) - 完整功能清单与实现细节
+- [API 文档](docs/API.md) - 数据模型、用例、仓库接口
+- [构建配置](docs/BUILD.md) - 依赖版本、签名、ProGuard
 
 ## 技术栈
 
-- Kotlin
-- Jetpack Compose + Material3
-- MVVM + Clean Architecture
-- Hilt (依赖注入)
-- Coroutines
+| 类别     | 技术                                   |
+| -------- | -------------------------------------- |
+| 语言     | Kotlin 2.2.10 (Compose Compiler)       |
+| UI       | Jetpack Compose + Material3            |
+| 架构     | MVVM + Clean Architecture              |
+| 依赖注入 | Hilt 2.59.2 (KSP)                      |
+| 异步     | Coroutines 1.11.0                      |
+| 导航     | Navigation Compose 2.9.8               |
+| SDK      | compileSdk 37, minSdk 23, targetSdk 37 |
+| 构建     | AGP 9.1.1, Gradle 9.4.1, JDK 17        |
 
 ## 项目结构
 
@@ -49,8 +56,6 @@ app/src/main/java/top/yuameshi/sms/cleaner/
 │   ├── datasource/                 # 数据源
 │   │   ├── SmsDataSource.kt        # 短信数据源，封装 ContentResolver
 │   │   └── SmsSelectionBuilder.kt  # SQL 筛选条件构建器
-│   ├── manager/
-│   │   └── SmsOperationManager.kt  # 统一短信数据库操作管理器
 │   ├── model/                      # 数据模型
 │   │   ├── FilterState.kt          # 筛选状态模型
 │   │   ├── SelectionState.kt       # 选择状态模型
@@ -115,32 +120,29 @@ app/src/main/java/top/yuameshi/sms/cleaner/
 └── SmsCleanerApp.kt                # Application 类
 ```
 
-## MVVM 架构合规性
+## 架构概览
 
 本项目严格遵循 MVVM + Clean Architecture 原则：
 
+```
+UI Layer (Compose)  →  ViewModel Layer  →  Domain Layer (UseCases)  →  Data Layer (Repository + DataSource)
+```
+
 ### 依赖规则
-- **UI 层** → ViewModel 层（通过 Hilt 注入）
-- **ViewModel 层** → Domain 层（UseCases）+ Repository 接口
-- **Domain 层** → Repository 接口（依赖反转）
-- **Data 层** → 实现 Repository 接口，封装数据源
 
-### UseCase 提取
-所有业务逻辑已提取为独立的 UseCase：
-- `GetSmsUseCase` - 获取短信（分页）
-- `DeleteSmsUseCase` - 删除短信（单条/批量/按条件）
-- `ExportSmsUseCase` - 导出短信为 CSV
-- `ImportSmsUseCase` - 从 CSV 导入短信
-- `CheckDefaultSmsUseCase` - 检查默认短信 App 状态
-- `CheckPermissionsUseCase` - 检查权限状态
-- `LoadSimCardsUseCase` - 加载 SIM 卡信息
+- **UI 层** -> ViewModel 层（通过 Hilt 注入）
+- **ViewModel 层** -> Domain 层（UseCases）+ Repository 接口
+- **Domain 层** -> Repository 接口（依赖反转）
+- **Data 层** -> 实现 Repository 接口，封装数据源
 
-### 状态管理
-- 使用 `SmsScreenUiState` 统一管理 12 个 UI 状态字段
-- 替代了原来分散的 12 个独立 `StateFlow`
-- MainScreen 从 10 个 `collectAsStateWithLifecycle()` 调用减少到 1 个
+### 核心设计
 
-### 零 Android 框架依赖
-- `SmsViewModel` 不依赖任何 Android 框架类
-- `Context` 依赖已下沉到 UseCase 层（`CheckPermissionsUseCase`、`ExportSmsUseCase`）
-- 所有 UseCase 均可独立单元测试
+- **7 个 UseCase**：GetSms、DeleteSms、ExportSms、ImportSms、CheckDefaultSms、CheckPermissions、LoadSimCards
+- **统一状态管理**：`SmsScreenUiState` 整合 12 个 UI 状态字段，MainScreen 仅需 1 个 `collectAsStateWithLifecycle()`
+- **零 Android 框架依赖**：`SmsViewModel` 不依赖任何 Android 框架类，Context 依赖下沉到 UseCase 层
+- **Repository 接口模式**：通过 Hilt `@Binds` 实现依赖反转，便于单元测试
+
+## 许可证
+
+[MIT License](LICENSE)
+
